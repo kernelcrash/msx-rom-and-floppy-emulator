@@ -19,7 +19,7 @@ Wiring it
 ---------
 
 Using a STM32F407VET6 or STM32F407VGT6 board ('B' means the buffered pin on the slot connector)
-
+```
    PA1         - wire a button between it and GND. No need for a pullup. This is 'NEXT'
    PA2         - wire a button between it and GND. No need for a pullup. This is 'PREV'
    PE0 to PE15 - BA0 to BA15
@@ -32,7 +32,7 @@ Using a STM32F407VET6 or STM32F407VGT6 board ('B' means the buffered pin on the 
    PC4         - _BUSDIR1 or 2 (only required if you are emulating the RP5C01 chip)
 
    GND         - GND
-
+```
 If you get a board with a microSD card slot, then this 'standard' wiring of the SD adapter
 is fine.
 
