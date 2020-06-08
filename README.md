@@ -118,12 +118,12 @@ general purpose global constants and pointers. This means the interrupt handler 
 not need to push any registers (On ARM, r0-r3 and r12 are automatically pushed 
 whether you like it or not though). The fpu registers are effectively used as high speed RAM. 
 Here's an example;
-
+```
    // grab the pointer to GPIOA from s11
    vmov	r1,s11
    // s1 is preset to the value '1'. Send PA0 high
    vstr s1,[r1,ODR]
-
+```
 There are thirty two 32 bit fpu registers (s0 to s31). I have used most of them, though
 I noticed that gcc tends to want to do weird things with s16, s17, s18 and s19 (d8 and d9),
 so I tend to avoid those.
