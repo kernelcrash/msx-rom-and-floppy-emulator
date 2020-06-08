@@ -79,10 +79,10 @@ Disk images should end in .dsk and should be either 737280 or 368640 bytes
 in size.
 
 In order to load a disk, you need a diskrom. Put one disk rom in the root
-of the SD card called 'disk.rom. I have only tested with the NMS8250 disk rom with MD5
+of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom with MD5
 0ed6dbd654da55b56dfb331dd3df82f0 . 
 
-For the WD2793 floppy disk controller support:
+The WD2793 floppy disk controller support was based on WD1793.c in fMSX by Marat Fayzullin. Note that:
 
  - Not all the chip is implemented. But most of the stuff you want is.
  - It pretends to be only one drive
@@ -110,7 +110,8 @@ outcomes for the _MREQ processing at the expense of reducing the time available 
 main while() loop. MSX adds wait states such that an M1 is low for 560ns and a regular
 memory access is 690ns. On the stm32f407 @ 240MHz, its around 100ns best case until the
 first line of the interrupt handler, so we are not as pressed for time as some other Z80A
-systems. ie. we can 'get away' with the interrupt on the -ve edge.
+systems. ie. we can 'get away' with the interrupt on the -ve edge. Note though that the 
+interrupt handling code is written in ARM assembly.
 
 The interrupt handler makes heavy use of floating point registers that are used as
 general purpose global constants and pointers. This means the interrupt handler does
@@ -133,11 +134,14 @@ As far as the decision process for an _MREQ int;
    can appear a bit rough to the stm32f4
  - see if the _SlotSelect signal is low. If its not then exit.
  - Next we need to figure out if we're simply emulating a normal ROM cart, or whether
-   we're emulating a disk rom, and will be using disk images. A the moment its one or the
+   we're emulating a disk rom, and will be using disk images. At the moment its one or the
    other. If you want disks then you can't have other carts as the only ROM being emulated
    will be the disk ROM (which is a basic 16k ROM).
  - So if its a disk ROM, then we emulate the 16K disk ROM, and also enable access to the 
-   emulated floppy disk controller at 0x7ff8-0x7fff (replcated at 0xbff8-0xbfff)
+   emulated floppy disk controller at 0x7ff8-0x7fff (replicated at 0xbff8-0xbfff)
+ - If its a ROM cartridge, then we need to quickly translate any 'Mapper' bank selection
+   such that the appropriate 8K block is presented. Conversely a 'write' allows the ROM
+   to write to the Mapper bank registers (which differ depending on the Mapper type).
 
 
 
