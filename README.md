@@ -1,7 +1,7 @@
 msx-rom-and-floppy-emulator
 ===========================
 
-More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-in-msx/2020/06/09
+More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-in-msx/
 
 Overview
 --------
