@@ -1,8 +1,10 @@
 msx-rom-and-floppy-emulator
 ===========================
 
-What is it?
------------
+More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-in-msx/2020/06/09
+
+Overview
+--------
 
 - Take a cheap STM32F407 board (US$10 or so). Wire it into an MSX cartridge slot..
 - Make a FAT32 partition on a micro SD card and put rom and dsk images on it.
