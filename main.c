@@ -511,7 +511,7 @@ int __attribute__((optimize("O0")))  main(void) {
         }
 
 
-        TCHAR root_directory[5] = "msx";
+        TCHAR root_directory[15] = "msx";
         DIR dir;
         static FILINFO fno;
 
@@ -528,6 +528,12 @@ int __attribute__((optimize("O0")))  main(void) {
 	first_time=TRUE;
 	next_button_debounce=0;
 	file_counter=-1;
+
+	// attempt to load the special menu rom. See kcmfs
+	res = load_rom("menu.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
+	if (res == FR_OK) {
+		first_time=FALSE;
+	}
 	// This memset is actually really important
 	memset(&fil, 0, sizeof(FIL));
 
@@ -572,7 +578,7 @@ int __attribute__((optimize("O0")))  main(void) {
 					// You need to put your disk rom as 'disk.rom' on the root of the SD card
 					load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
 					res = f_open(&fil, full_filename, FA_READ);
-					if (res != FR_OK) blink_pa6_pa7(500);
+					if (res != FR_OK) blink_pa6_pa7(1500);
 					track_size = (f_size(&fil) == SINGLE_SIDED_DISK_SIZE)? 9 * 512 : 2 * 9 * 512;
 					// trigger a seek in the next block of code. This doesnt seem to work through a warm reboot (ie. triggering a Z80 _RESET)
 					main_thread_data = 0;
@@ -612,6 +618,69 @@ int __attribute__((optimize("O0")))  main(void) {
 					// main_thread_data contains the track number
 					load_track(&fil, main_thread_data, (char *) &track_buffer, track_size);
 					main_thread_actual_track = main_thread_data;
+					main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
+					break;
+				}
+				case (MAIN_THREAD_COMMAND_LOAD_DIRECTORY): {
+					main_thread_command_reg |= MAIN_COMMAND_IN_PROGRESS;
+					load_directory("msx",(unsigned char *)(CCMRAM_BASE+0x4000));
+					unsigned char * p = (unsigned char *) (CCMRAM_BASE+0x4000);
+					*p = 0x00;
+					main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
+					break;
+				}
+				case (MAIN_THREAD_COMMAND_LOAD_ROM): {
+					main_thread_command_reg |= MAIN_COMMAND_IN_PROGRESS;
+					// The filename to load will be in CCMRAM+0x4000+0x80
+					//
+					char *fname = (char *) (CCMRAM_BASE+0x4000+0x80);
+					file_counter=0;
+					res = f_closedir(&dir);
+        				res = f_opendir(&dir, root_directory);
+					// Search for the file that the user selected. This is really just a cheap way
+					// to have the directory pointer at the right spot, such that hitting NEXT
+					// will advance you to the rom/disk the user expects to be next
+					while (1) {
+						res = f_readdir(&dir, &fno);                 
+						if (res != FR_OK || fno.fname[0] == 0) {
+							f_closedir(&dir);
+							res = f_opendir(&dir, root_directory);
+							res = f_readdir(&dir, &fno);
+							file_counter=0;
+							break;
+						}
+						if (strcmp(fno.fname,fname)==0) {
+							break;
+						}
+						file_counter++;
+					}
+					strcpy(full_filename,root_directory);
+					strcat(full_filename,"/");
+					strcat(full_filename,fno.fname);
+					if (suffix_match(fno.fname, DSK_SUFFIX)) {
+						// try to close any previous dsk
+						if (fil.obj.id) {
+							f_close(&fil);
+							memset(&fil, 0, sizeof(FIL));
+						}
+						// You need to put your disk rom as 'disk.rom' on the root of the SD card
+						load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
+						res = f_open(&fil, full_filename, FA_READ);
+						// THIS ONE FAILED
+						if (res != FR_OK) blink_pa6_pa7(2500);
+						track_size = (f_size(&fil) == SINGLE_SIDED_DISK_SIZE)? 9 * 512 : 2 * 9 * 512;
+						// trigger a seek in the next block of code. This doesnt seem to work through a warm reboot (ie. triggering a Z80 _RESET)
+						main_thread_data = 0;
+						main_thread_command_reg = MAIN_THREAD_SEEK_COMMAND;
+						// this willl activate the FDC emulation of 7ff8
+						init_fdc();
+					} else {
+						// Try to close any dsk file that might be open
+						f_close(&fil);
+						// Must be a ROM
+						deactivate_fdc();
+						load_rom(full_filename,(char *)CCMRAM_BASE,(char *)&high_64k_base);
+					}
 					main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
 					break;
 				}

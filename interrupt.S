@@ -174,7 +174,7 @@ low_64k_base:
 	.lcomm high_64k_base,0x10000
 	.lcomm track_buffer,2*9*512		// one track , both sides
         .lcomm  RTC_address_register,4
-        //.lcomm  RTC_banks,4*16		// these are now in the backup SRAM
+        .lcomm  RTC_banks,4*16		// these are now in the backup SRAM
 	
 
 
@@ -493,7 +493,8 @@ read_io_0x00b5:
 	ldr	r3,[r2,ODR]		// get current state ODR
 	ands	r3,#~(BUSDIR_HIGH)	// set BUSDIR low so that we can do an IO read
 	str	r3,[r2,ODR]
-	mov32	r3,#BACKUP_SRAM
+	//mov32	r3,#BACKUP_SRAM
+	mov32	r3,RTC_banks
 	mov32	r1,RTC_address_register
 	ldr	r1,[r1]			// get last address written to 0xb4
 	cmp	r1,#0x0d		// mode register
@@ -548,7 +549,8 @@ read_io_0x00b5:
 
 write_io_0x00b5:	
 	iorq_databus_write_delay
-	mov32	r3,#BACKUP_SRAM
+	//mov32	r3,#BACKUP_SRAM
+	mov32	r3,RTC_banks
 	mov32	r1,RTC_address_register
 // read data bus of Z80
 	ldr	r0,[r2,C_TO_D_OFFSET+IDR]
@@ -678,8 +680,33 @@ write_slot_memory:
 	lsls	r12,r3,#1		// b31 -> C, b30 -> M
 	bcs	ascii8_or_16
 	bmi	3$
-// b31/30 = 00b , therefore its a generic rom and you cannot write
+// b31/30 = 00b , therefore its a generic rom and you cannot generally write
+// However, for the special file menu rom, it is considered generic yet you can write to 8000
+	lsls	r12,r0,#16	// move addr bus bit 15 to bit 31
+	bmi	4$
 	unrolled_exit_EXTI2
+// Write to 80xx
+4$:	tst	r0,#0x7f00	// only allow 8000 - 80ff
+	beq	8$
+	unrolled_exit_EXTI2
+8$:	ands	r0,#0x00ff	// effectively you can only write to the first 128 bytes of 80xx
+	mov32	r3,(CCMRAM_BASE+0x4000)
+	strb 	r1,[r3,r0]	// store a byte
+	cmp	r0,#0		// check if its the command byte (offset 0)
+	beq	5$
+	unrolled_exit_EXTI2
+// Send command to 0x8000
+5$:	
+	tst	r1,#LOAD_DIRECTORY_COMMAND_MASK
+	beq	6$
+	mov	reg_main_thread_command,#MAIN_THREAD_COMMAND_LOAD_DIRECTORY
+	unrolled_exit_EXTI2
+6$:	tst	r1,#LOAD_ROM_COMMAND_MASK
+	beq	7$
+	mov	reg_main_thread_command,#MAIN_THREAD_COMMAND_LOAD_ROM
+7$:
+	unrolled_exit_EXTI2
+	
 // b31/30 = 01b , therefore its a konami4
 3$:
 // r0 = address bus. 0x6xxx means update page 1, 0x8xxx means update page2, 0xa000 means update page3

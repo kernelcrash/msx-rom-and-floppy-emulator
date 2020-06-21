@@ -19,6 +19,7 @@ void blink_pa6_pa7(int delay);
 uint32_t suffix_match(char *name, char *suffix);
 uint32_t get_romtype_from_filename(char *fname);
 uint32_t get_pagemap_default_by_romtype(uint32_t romtype);
-void load_rom(char *fname,char *lowbuffer, char* highbuffer);
+FRESULT load_rom(char *fname,char *lowbuffer, char* highbuffer);
+void load_directory(char *dirname, unsigned char *buffer);
 
 #endif
