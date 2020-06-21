@@ -13,7 +13,7 @@ Overview
 - It also emulates a WD2793 floppy disk controller such that you can load disk images off the SD card.
 - It also (optionally) partially emulates a RP5C01 RTC chip (enough of it to make an MSX2 computer boot if you don't have that chip). This is only really of use to me! Comment out the
  ENABLE_RTC_RAM_BANK_EMULATION line in the Makefile if you dont need this emulation.
-- The code is still really 'proof of concept'. There is one button that allows you to cycle to the next rom or disk in a directory. Another button takes you to the previous rom or disk.
+- The code is still really 'proof of concept'. There is one button that allows you to cycle to the next rom or disk in a directory. Another button takes you to the previous rom or disk. However, I've added a simple boot menu mechanism where an MSX native program (kcmfs) presents a menu of files from the SD card and lets you boot from one of them.
 
 I used an Omega MSX2 computer to test this. I have not tested it on any other MSX or MSX2 computers.
 
@@ -93,6 +93,12 @@ The WD2793 floppy disk controller support was based on WD1793.c in fMSX by Marat
    a multi-disk game it generally works OK if you press NEXT while the computer 
    is running.
 
+There is also now a native MSX program (kcmfs) that presents a list of files on the
+SD card, lets you select one and boot it. To use kcmfs you need to copy the menu.rom
+file to the root of the SD card. After a reset of the STM32F4 board it will load
+menu.rom instead of the first file in the msx directory. See the section on KCMFS 
+for more information.
+
 Copying the firmware to the stm32f407 board
 -------------------------------------------
 
@@ -101,6 +107,51 @@ an example of using dfu-util in the transfer.sh script. In order for this to
 work you would need to set the BOOT0 and or BOOT1 settings such that plugging
 the board in via usb will show a DFU device. Then you can run transfer.sh. Remove
 the BOOT0 or BOOT1 jumpers after you do this.
+
+KCMFS
+-----
+
+In the kcmfs directory is an sdcc based MSX program that presents a menu to
+the user. It lists the files in the msx directory of the SD card and let's 
+you select one, and consequently reboots off it. If you put kcmfs (menu.rom) in
+the root of the SD card, it will always boot menu.rom  after a reset of the
+STM32F4 board.
+
+kcmfs is about as simple as I could go. No fancy graphics. On boot it
+shows the first 20 files in the msx directory of the SD card. They are listed
+with 'a' to 't' down the left hand side. You press a letter and your MSX
+computer should reboot and start up what you selected. Assuming there are 
+more than 20 files in the msx directory, you just press '2' for the 2nd
+page of 20 files, '3' for the 3rd and so on. You can also press '?' to get
+some help.
+
+There is an ultra simple protocol used;
+
+ - kcmfs writes an 0x80 to 0x8000. That triggers the main thread of the 
+   smt32f4 board to do a directory listing of the msx directory. The 
+   first filename in the direcory is written so that the MSX computer will
+   see it at 0x8100, the 2nd file appears at 0x8180 and so on (ie. 128 byte's
+   per filename)
+ - kcmfs polls 0x8000 to see when bit 7 goes low. That means the file listing
+   process has completed. The number of files retrieved is written to 0x8002.
+   It can't be more than 126 or so, so its always a byte length, however I
+   write a 0x00 to 0x8003 so that it can be used as a 16 bit int.
+ - kcmfs lets a user select a file. The filename selected is copied in to
+   0x8080 - 0x80ff. Then a 0x40 is written to 0x8000. That triggers the 
+   main thread of the stm32f4 board to load the appropriate rom or disk.
+   As soon as the 0x40 is written, the code triggers a reset of the MSX 
+   computer. Technically I should be running the code to write the 0x40
+   out of RAM , not slot memory since the loading of a new ROM will overwrite
+   the menu.rom that is currently loaded. However, there is enough of a 
+   delay between the write of the 0x40 and a ROM being loaded , that it
+   does not seem to currently cause a problem.
+
+   One other thing to note with the loading of a new ROM, is that the main
+   thread actually steps through the msx directory (as if you were pressing 
+   NEXT again and again). This seems silly, but the point is to allow 2 or
+   3 disks games to work. ie. press NEXT in a game when it asks for the next
+   disk. This is all dependent on you copying files to the SD card in the 
+   right order.
 
 
 Technical
