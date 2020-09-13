@@ -676,13 +676,16 @@ write_slot_memory:
 	ldr     r1,[r2,C_TO_D_OFFSET+IDR]       // read databus again
 	lsrs	r1,#8
 	vmov	r3,reg_mapper_pages
-// top two bits of reg_mapper_pages are the rom type
-	lsls	r12,r3,#1		// b31 -> C, b30 -> M
-	bcs	ascii8_or_16
-	bmi	3$
-// b31/30 = 00b , therefore its a generic rom and you cannot generally write
+// top three bits of reg_mapper_pages are the rom type
+	lsls	r12,r3,#1		// b31 -> C, b30 -> M, b29 -> b30
+	bcs	ascii8_or_16		// 1xx = ascii8 or 16
+	bmi	konami4_or_5		// 01x = konami4 or 5
+// b31/30/29 = 000b , therefore its a generic rom and you cannot generally write
 // However, for the special file menu rom, it is considered generic yet you can write to 8000
-	lsls	r12,r0,#16	// move addr bus bit 15 to bit 31
+	lsls	r12,#1		// get b29 into plus/minus 000 = generic. 001 = menu.rom
+	bmi	9$
+	unrolled_exit_EXTI2
+9$:	lsls	r12,r0,#16	// move addr bus bit 15 to bit 31
 	bmi	4$
 	unrolled_exit_EXTI2
 // Write to 80xx
@@ -708,7 +711,10 @@ write_slot_memory:
 	unrolled_exit_EXTI2
 	
 // b31/30 = 01b , therefore its a konami4
-3$:
+konami4_or_5:
+	lsls	r12,#1		// What would have been b29 -> M
+	bmi	konami5
+//konami4
 // r0 = address bus. 0x6xxx means update page 1, 0x8xxx means update page2, 0xa000 means update page3
 	lsrs	r0,#13		// b14/13 = 10 = page0 (ignore), 11=page1, 00=page2, 01=page3
 	ands	r0,#0x03
@@ -729,7 +735,33 @@ write_slot_memory:
 	vmov	reg_mapper_pages,r3
 	
 	unrolled_exit_EXTI2
+konami5:
+// r0 = address bus. 0x5xxx means update page 0, 0x7xxx means update page 1, 0x9xxx means update page2, 0xb000 means update page3
+// 0xx8xx is for writing to the SCC. Since we are not emulating the SCC we need to ignore such writes
+	tst	r0,#0x0800
+	bne	3$
+	lsrs	r0,#13		// b14/13 = 10 = page0 (ignore), 11=page1, 00=page2, 01=page3
+	ands	r0,#0x03
+	cmp	r0,#2
+	bge	1$
+// must be 00 (page2) or 01 (page3)
+	tst	r0,#0x1
+	ITE	NE
+	bfine	r3,r1,#4,#4		// copy databus bits to b8-b4 of page register
+	bfieq	r3,r1,#0,#4		// copy databus bits to b3-0 of page register
+	b	2$
+// = 2 means page0 . =3 means page1 which you can change
+1$:	tst	r0,#0x1
+	ITE	NE
+	bfine	r3,r1,#12,#4		// copy databus bits to b15-b12 of page register
+	bfieq	r3,r1,#8,#4		// copy databus bits to b11-b8 of page register
+2$:
+	vmov	reg_mapper_pages,r3
+3$:	
+	unrolled_exit_EXTI2
+
 ascii8_or_16:
+	lsls	r12,#1
 	bmi	ascii16
 // ascii8
 // r0 = address bus. 0x60xx means update page 0, 0x68xx means update page 1, 0x70xx means update page2, 0x7800 means update page3

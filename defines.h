@@ -23,7 +23,7 @@
 #define reg_moder_dataout	s8
 #define reg_moder_datain	s9
 // reg_mapper_pages
-//   b31/b30 - rom type
+//   b31/b30/b29 - rom type
 //   b15-b12 - page 1 bank (8K)
 //   b11-b8  - page 0 bank (8K)
 //   b7 -b4  - page 3 bank (8k)
@@ -137,11 +137,14 @@
 
 // ---------------
 #define ROM_TYPE_GENERIC	0
-#define ROM_TYPE_KONAMI4	1
-#define ROM_TYPE_ASCII8		2
-#define ROM_TYPE_ASCII16	3
+#define ROM_TYPE_MENUROM	1
+#define ROM_TYPE_KONAMI4	2
+#define ROM_TYPE_KONAMI5	3
+#define ROM_TYPE_ASCII8		4
+#define ROM_TYPE_ASCII16	5
 
 #define ROM_SUFFIX_KONAMI4	".konami4"
+#define ROM_SUFFIX_KONAMI5	".konami5"
 #define ROM_SUFFIX_ASCII8	".ascii8"
 #define ROM_SUFFIX_ASCII16	".ascii16"
 #define DSK_SUFFIX	".dsk"

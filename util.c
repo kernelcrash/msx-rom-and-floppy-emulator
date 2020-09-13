@@ -61,21 +61,32 @@ uint32_t get_romtype_from_filename(char *fname) {
 	if (suffix_match(fname,ROM_SUFFIX_KONAMI4)) {
 		romtype = ROM_TYPE_KONAMI4;
 	}
+	if (suffix_match(fname,ROM_SUFFIX_KONAMI5)) {
+		romtype = ROM_TYPE_KONAMI5;
+	}
 	if (suffix_match(fname,ROM_SUFFIX_ASCII8)) {
 		romtype = ROM_TYPE_ASCII8;
 	}
 	if (suffix_match(fname,ROM_SUFFIX_ASCII16)) {
 		romtype = ROM_TYPE_ASCII16;
 	}
+	if (strncmp(fname,"menu.rom",8) == 0) {
+		romtype = ROM_TYPE_MENUROM;
+	}
+
 	return romtype;
 }
 
 uint32_t get_pagemap_default_by_romtype(uint32_t romtype) {
 	switch(romtype) {
+		case ROM_TYPE_MENUROM :
+			return 0x00001032;
 		case ROM_TYPE_GENERIC :
 			return 0x00001032;
 		case ROM_TYPE_KONAMI4 :
 			return 0x00001000;
+		case ROM_TYPE_KONAMI5 :
+			return 0x00001032;
 		case ROM_TYPE_ASCII8:
 			return 0x00000000;
 		case ROM_TYPE_ASCII16:
@@ -100,7 +111,7 @@ FRESULT load_rom(char *fname,char *lowbuffer, char* highbuffer) {
 	pagemap_default = get_pagemap_default_by_romtype(romtype);
 
 	// set romtype in upper portion of page map registers
-	__asm volatile("\t vmov "XSTR(reg_mapper_pages)", %0" :: "rm"(pagemap_default | (romtype <<30)));
+	__asm volatile("\t vmov "XSTR(reg_mapper_pages)", %0" :: "rm"(pagemap_default | (romtype <<29)));
 
 
 
