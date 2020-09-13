@@ -69,6 +69,7 @@ Some limitations:
    So the rules are:
 
      - ends in .konami4 then the rom is treated as Konami4
+     - ends in .konami5 then the rom is treated as Konami5 (though there is no SCC emulated. This format is purely for carts that are in the KonamiWithSCC format and can operate with a PSG)
      - ends in .ascii8  then the rom is treated as Ascii8
      - ends in .ascii16 then the rom is treated as Ascii16
      - anything else is treated as a generic 16 or 32K rom.
