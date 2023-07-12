@@ -6,12 +6,12 @@ More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-i
 NOTE:
 -----
 This is a debug branch to help resolve disk issues.
-Specifically, don't use this branch with ROM cartridges (other than a disk.rom)
-Some debug information is written into CCM RAM by the FDC emulation
-If you have a debugger you can read the log stream from 0x10008000
+Specifically, don't use this branch with ROM cartridges (other than a disk.rom). 
+Some debug information is written into CCM RAM by the FDC emulation. 
+If you have a debugger you can read the log stream from 0x10008000. 
 If you don't have a debugger, this branch creates an interface via the Z80 IO ports 0x20 and 0x21
-Reading from IO port 0x20 resets an address counter and reads the first byte from the 0x10008000 debug area, and increments the address counter
-Reading from IO port 0x21 just reads the next byte and increments the address counter. For example
+Reading from IO port 0x20 resets an address counter and reads the first byte from the 0x10008000 debug area, and increments the address counter. 
+Reading from IO port 0x21 just reads the next byte and increments the address counter. For example. 
 ```
 PRINT "0x10008000 = ", INP(&H20)
 PRINT "0x10008001 = ", INP(&H21)
