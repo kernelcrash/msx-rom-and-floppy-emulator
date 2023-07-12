@@ -31,8 +31,8 @@ branchtable:
 	.short     ((io_unused - branchtable)/2) /* 0x001d */
 	.short     ((io_unused - branchtable)/2) /* 0x001e */
 	.short     ((io_unused - branchtable)/2) /* 0x001f */
-	.short     ((io_unused - branchtable)/2) /* 0x0020 */
-	.short     ((io_unused - branchtable)/2) /* 0x0021 */
+	.short     ((io_0x0020 - branchtable)/2) /* 0x0020 */
+	.short     ((io_0x0021 - branchtable)/2) /* 0x0021 */
 	.short     ((io_unused - branchtable)/2) /* 0x0022 */
 	.short     ((io_unused - branchtable)/2) /* 0x0023 */
 	.short     ((io_unused - branchtable)/2) /* 0x0024 */

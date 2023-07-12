@@ -148,12 +148,14 @@
 	.endr
 .endm
 
-// Use the 64K CCM ram as a sort of circular buffer for debugging
+// Use the 64K CCM ram as a sort of debug buffer
 .macro log_r0_r1_to_ccm_uses_r12
         vmov    r12,reg_ccmram_log
-        strb    r0,[r12],#1     // store the address 08 to 0F (ie 7ff8 to 7fff)
-        strb    r1,[r12],#1     // store the byte written
-        bfc     r12,#16,#8      // Really only need to clear bit 16
+	tst	r12,#0x00010000
+	ITT	EQ
+        strbeq	r0,[r12],#1     // store the address 08 to 0F (ie 7ff8 to 7fff)
+        strbeq	r1,[r12],#1     // store the byte written
+        //bfceq	r12,#16,#8      // Really only need to clear bit 16
         vmov    reg_ccmram_log,r12
 .endm
 
@@ -173,6 +175,7 @@ low_64k_base:
 .section bss
 	.lcomm high_64k_base,0x10000
 	.lcomm track_buffer,2*9*512		// one track , both sides
+	.lcomm debug_address_register,4
         .lcomm  RTC_address_register,4
         .lcomm  RTC_banks,4*16		// these are now in the backup SRAM
 	
@@ -352,8 +355,10 @@ init_fpu_regs:
 	movs	r0,#0x100
 	vmov	reg_bit8_high,r0
 
-	mov32	r0,0x10000000
+	mov32	r0,0x10008000
 	vmov	reg_ccmram_log,r0
+	mov32	r1,#debug_address_register
+	str	r0,[r1]
 
 	// bit31 of reg_fdc_system is used to work out if the fdc is actually active. Default is off
 	movs	r0,#0
@@ -428,9 +433,9 @@ clear_pending_iorq_int:
 	tst	r0,#IORQ_MASK
 	bne	io_unused	// ignore bogus glitchy interrupts
 	
-#ifndef	ENABLE_RTC_RAM_BANK_EMULATION
-	unrolled_exit_EXTI0
-#endif
+//#ifndef	ENABLE_RTC_RAM_BANK_EMULATION
+//	unrolled_exit_EXTI0
+//#endif
 
 
 	// Need to ignore the top 8 bits of address bus
@@ -440,6 +445,58 @@ low_io_addresses:
 .include "msx_io_branchtable.S"
 
 io_unused:
+        unrolled_exit_EXTI0
+
+// 0x0020 is 'reset the debug address register to the beginning and also read the first byte (ie INP(&H20) )
+io_0x0020:
+	mov32	r0,#debug_address_register
+	mov32	r1,#0x10008000
+	str	r1,[r0]
+// 0x0021 is read the next byte from the debug area (ie INP(&H21) )
+io_0x0021:
+
+	ldr     r0,[r2,IDR]     // get the portc control pins again
+	tst	r0,#RD_MASK
+	beq	1$
+        unrolled_exit_EXTI0
+1$:	
+	ldr	r3,[r2,ODR]		// get current state ODR
+	ands	r3,#~(BUSDIR_HIGH)	// set BUSDIR low so that we can do an IO read
+	str	r3,[r2,ODR]
+	
+	mov32	r0,#debug_address_register
+	ldr	r3,[r0]			// get last address 
+	ldrb	r1,[r3],#1		// get a debug byte from CCM RAM
+	str	r3,[r0]
+
+
+	lsls	r1,#8
+	vmov	r0,reg_moder_dataout
+        str     r1,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
+        str     r0,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
+
+	vmov	r3,reg_exti_base
+	set_EXTI0_RTSR
+
+        vstr     reg_bit0_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+
+
+        vmov	r1,reg_moder_datain
+	
+	dsb
+        sev     // set the event register
+        wfe     // clear the event register
+// So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
+        wfe     // wait for +ve edge of _IORQ
+
+	//databus_read_extra_delay
+
+        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+	ldr	r0,[r2,ODR]		// get current state ODR
+	orrs	r0,#(BUSDIR_HIGH)	// set BUSDIR high again
+	str	r0,[r2,ODR]
+	clear_EXTI0_RTSR
+
         unrolled_exit_EXTI0
 
 // -----------
@@ -1477,6 +1534,7 @@ fdc_command_read_address:
 // ---------------------
 
 fdc_track_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1491,6 +1549,7 @@ fdc_track_write:
         unrolled_exit_EXTI2
 
 fdc_sector_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1506,6 +1565,7 @@ fdc_sector_write:
         unrolled_exit_EXTI2
 
 fdc_data_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1552,6 +1612,7 @@ fdc_data_write:
 
 // -----------------
 fdc_side_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1569,6 +1630,7 @@ fdc_side_write:
         unrolled_exit_EXTI2
 
 fdc_driveselect_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 #ifdef ENABLE_FDC_CCM_LOGGING
