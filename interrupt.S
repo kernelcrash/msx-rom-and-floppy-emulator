@@ -494,7 +494,7 @@ io_0x0021:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _IORQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	ldr	r0,[r2,ODR]		// get current state ODR
@@ -592,7 +592,7 @@ read_io_0x00b5:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _IORQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	ldr	r0,[r2,ODR]		// get current state ODR
@@ -722,7 +722,7 @@ slot_selected:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -973,7 +973,7 @@ no_command_just_finished:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1011,7 +1011,7 @@ fdc_track_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1045,7 +1045,7 @@ fdc_sector_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1120,7 +1120,7 @@ fdc_data_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1154,7 +1154,7 @@ fdc_ready_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	clear_EXTI2_RTSR
@@ -1194,7 +1194,7 @@ fdc_0x7ffd_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	clear_EXTI2_RTSR
