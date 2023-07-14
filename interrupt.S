@@ -356,9 +356,10 @@ init_fpu_regs:
 	vmov	reg_bit8_high,r0
 
 	mov32	r0,0x10008000
-	vmov	reg_ccmram_log,r0
 	mov32	r1,#debug_address_register
 	str	r0,[r1]
+	adds	r0,#2
+	vmov	reg_ccmram_log,r0	// should be pointing to 0x10008002 now
 
 	// bit31 of reg_fdc_system is used to work out if the fdc is actually active. Default is off
 	movs	r0,#0
@@ -452,6 +453,10 @@ io_0x0020:
 	mov32	r0,#debug_address_register
 	mov32	r1,#0x10008000
 	str	r1,[r0]
+	movs	r0,#0xaa
+	strb	r0,[r1]
+	movs	r0,#0x55
+	strb	r0,[r1,1]
 // 0x0021 is read the next byte from the debug area (ie INP(&H21) )
 io_0x0021:
 
