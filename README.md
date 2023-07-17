@@ -6,6 +6,11 @@ More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-i
 NOTE:
 -----
 This is a debug branch to help resolve disk issues.
+
+This branch changes the way the 'end of read cycles' are detected. Instead
+of using WFE based logic, it just uses a simple polling loop. This may end
+up working 'better' if _MREQ or _IORQ are a little noisy.
+
 Specifically, don't use this branch with ROM cartridges (other than a disk.rom). 
 Some debug information is written into CCM RAM by the FDC emulation. 
 If you have a debugger you can read the log stream from 0x10008000. 

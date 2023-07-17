@@ -1,7 +1,7 @@
 #include "defines.h"
 /*
    interrupt.S
-   kernel@kernelcrash.com 2020
+   kernel@kernelcrash.com 2023
 
    - _MREQ interrupt processing
      - simple ROM emulation
@@ -480,27 +480,39 @@ io_0x0021:
         str     r1,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
         str     r0,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-	vmov	r3,reg_exti_base
-	set_EXTI0_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI0_RTSR
 
-        vstr     reg_bit0_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//      vstr     reg_bit0_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _IORQ
+//        wfe     // wait for +ve edge of _IORQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#IORQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
+
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	ldr	r0,[r2,ODR]		// get current state ODR
 	orrs	r0,#(BUSDIR_HIGH)	// set BUSDIR high again
 	str	r0,[r2,ODR]
-	clear_EXTI0_RTSR
+//	clear_EXTI0_RTSR
 
         unrolled_exit_EXTI0
 
@@ -708,28 +720,39 @@ slot_selected:
         str     r1,[r2, C_TO_D_OFFSET + ODR] // GPIOD ODR
         str     r0,[r2, C_TO_D_OFFSET + MODER]  // MODER set to outputs
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
 #ifdef DEBUG_EXTI2_ROM_ACCESS
         vstr     reg_zero,[r11,ODR]
 #endif
-	clear_EXTI2_RTSR
+//	clear_EXTI2_RTSR
 
 	unrolled_exit_EXTI2
 
@@ -960,25 +983,36 @@ no_command_just_finished:
 #endif
 
 // Now finally go back to the code to wait for _MREQ to go high
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
 
-	clear_EXTI2_RTSR
+//	clear_EXTI2_RTSR
 
         unrolled_exit_EXTI2
 
@@ -998,24 +1032,36 @@ fdc_track_read:
 	log_r0_r1_to_ccm_uses_r12
 #endif
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
 
-	clear_EXTI2_RTSR
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+
+//	clear_EXTI2_RTSR
         unrolled_exit_EXTI2
 
 fdc_sector_read:
@@ -1032,24 +1078,36 @@ fdc_sector_read:
 	log_r0_r1_to_ccm_uses_r12
 #endif
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
 
-	clear_EXTI2_RTSR
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+
+//	clear_EXTI2_RTSR
         unrolled_exit_EXTI2
 
 fdc_data_read:
@@ -1107,24 +1165,36 @@ fdc_data_read:
 	//log_r0_r1_to_ccm_uses_r12
 #endif
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
 
-	clear_EXTI2_RTSR
+ //       str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+
+//	clear_EXTI2_RTSR
         unrolled_exit_EXTI2
 
 fdc_ready_read:
@@ -1141,23 +1211,35 @@ fdc_ready_read:
         //log_r0_r1_to_ccm_uses_r12
 #endif
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
-	clear_EXTI2_RTSR
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
+
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+//	clear_EXTI2_RTSR
 
         unrolled_exit_EXTI2
 
@@ -1181,23 +1263,35 @@ fdc_0x7ffd_read:
 	log_r0_r1_to_ccm_uses_r12
 #endif
 
-	vmov	r3,reg_exti_base
-	set_EXTI2_RTSR
+//	vmov	r3,reg_exti_base
+//	set_EXTI2_RTSR
 
-        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
+//        vstr     reg_bit2_high,[r3,EMR]   // EXTI_EMR - wait for an event rather than an interrupt on PC0
 
         vmov	r1,reg_moder_datain
 	
-	dsb
-        sev     // set the event register
-        wfe     // clear the event register
+//	dsb
+//        sev     // set the event register
+//        wfe     // clear the event register
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
-        wfe     // wait for +ve edge of _MREQ
+//        wfe     // wait for +ve edge of _MREQ
 
-	databus_read_extra_delay
+//	databus_read_extra_delay
 
-        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
-	clear_EXTI2_RTSR
+9$:	ldr	r0,[r2,IDR]
+	tst	r0,#MREQ_MASK
+#ifdef ENABLE_EXTRA_READ_DELAY
+	ITT	NE
+	nopne	
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#else
+	IT	NE
+	strne	r1,[r2, C_TO_D_OFFSET + MODER]
+#endif
+	beq	9$
+
+//        str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
+//	clear_EXTI2_RTSR
 	//vstr	reg_zero,[r11,ODR]
         unrolled_exit_EXTI2
 
