@@ -130,6 +130,10 @@ work you would need to set the BOOT0 and or BOOT1 settings such that plugging
 the board in via usb will show a DFU device. Then you can run transfer.sh. Remove
 the BOOT0 or BOOT1 jumpers after you do this.
 
+If you are having trouble getting the board to appear as a DFU device, you can try
+putting a pull down resistor between PA10 and GND (some value between 1K and 10K will
+probably work).
+
 KCMFS
 -----
 
