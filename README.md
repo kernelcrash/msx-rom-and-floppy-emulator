@@ -10,7 +10,7 @@ Overview
 - Make a FAT32 partition on a micro SD card and put rom and dsk images on it.
 - Plug the micro SD into the STM32F4 board.
 - The STM32F4 board presents a rom image in real time to the MSX/MSX2 computer such that it thinks a rom cartridge is attached.
-- It also emulates a WD2793 floppy disk controller such that you can load disk images off the SD card.
+- It also emulates a WD2793 floppy disk controller such that you can load disk images off the SD card. Two floppy drives are supported; A: and B:
 - It also (optionally) partially emulates a RP5C01 RTC chip (enough of it to make an MSX2 computer boot if you don't have that chip). This is only really of use to me! Comment out the
  ENABLE_RTC_RAM_BANK_EMULATION line in the Makefile if you dont need this emulation.
 - The code is still really 'proof of concept'. There is one button that allows you to cycle to the next rom or disk in a directory. Another button takes you to the previous rom or disk. However, I've added a simple boot menu mechanism where an MSX native program (kcmfs) presents a menu of files from the SD card and lets you boot from one of them.
@@ -55,8 +55,8 @@ alphabetical).
 Some limitations:
 
  - MSX has lots of different 'megarom mappers' in cartridges. I have only 
-   implemented Konami4 (ie. Konami without an SCC), Ascii8, Ascii16 and 
-   what I would call 'generic' 16K and 32K carts (ie. no mapper)
+   implemented Konami4 (ie. Konami without an SCC), Konami5 (again without the SCC),
+   Ascii8, Ascii16 and what I would call 'generic' 16K and 32K carts (ie. no mapper)
  - You have to rename the ROMs to include the mapper type (yep, I don't have
    any fancy database lookup). So something like this won't work:
 
@@ -79,9 +79,26 @@ Some limitations:
     does not have enough RAM.
 
 Disk images should end in .dsk and should be either 737280 or 368640 bytes
-in size.
+in size. Normally you just copy .dsk images to the msx directory on the SD card.
+You can mix these freely with the rom images.
 
-In order to load a disk, you need a diskrom. Put one disk rom in the root
+However, the two drive support allows for some other options. If you 
+create a subdirectory under the msx directory instead of just plonking a .dsk file
+in, the subdirectory is treated as a collection of disk images. The subdirectory can
+be called anything you like. Its name will show up in the kcmfs menu. If say you have a 
+game and it has 'Game disk 1.dsk' and 'Game disk 2.dsk' then just copy them with their
+original names into the subdirectory you made. Now when you select that subdirectory
+from kcmfs, it will auto load the 'Game disk 1.dsk' into the A: drive as it is looking for
+the text 'disk 1' or 'Disk 1' or 'disk1' or 'Disk1' in the text of the filename. The 2nd disk
+'Game disk 2.dsk' isn't actually loaded in to the B: drive. I found most msx games don't seem
+to want to look at the B: drive. Anyway, when the game asks for the 2nd disk, hit the NEXT button
+and it will put 'Game disk 2.dsk' into the A: drive. Pressing PREV will switch it back to 
+'Game Disk 1.dsk' . If you actually want to put something in to the B: drive it just has to be a 
+file ending in '.dsk2'. If you had a 2 disk game and you had 'Game disk 2.dsk' in the A: drive, 
+and then pressed NEXT, it will actually pop you out of the subdirectory and select the next
+thing in the main list you see in kcmfs.
+
+In order to use disks at all, you need a diskrom. Put one disk rom in the root
 of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom with MD5
 0ed6dbd654da55b56dfb331dd3df82f0 . 
 
@@ -99,6 +116,26 @@ SD card, lets you select one and boot it. To use kcmfs you need to copy the menu
 file to the root of the SD card. After a reset of the STM32F4 board it will load
 menu.rom instead of the first file in the msx directory. See the section on KCMFS 
 for more information.
+
+Here's an example of a mix of games on the SD card
+```
+  msx/SomeSimple32K.rom
+  msx/AKomani4Rom.konami4
+  msx/somegame.dsk
+  msx/AKonami5Rom.konmai5
+  msx/SomeGameDirectory
+  msx/SomeGameDirectory/Blah Disk 1.dsk
+  msx/SomeGameDirectory/Blah Disk 2.dsk
+  msx/AnAscii8Rom.ascii8
+  msx/SomeOtherGameDirectory
+  msx/SomeOtherGameDirectory/Thing Disk1.dsk
+  msx/SomeOtherGameDirectory/Thing Disk2.dsk
+  msx/SomeOtherGameDirectory/Thing Disk3.dsk
+  msx/SomeOtherGameDirectory/Thing Disk4.dsk
+  msx/someinfocomgame
+  msx/someinfocomgame/game.dsk
+  msx/someinfocomgame/savedisk.dsk2
+```
 
 Compiling the firmware
 ----------------------
