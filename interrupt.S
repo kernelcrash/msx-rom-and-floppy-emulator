@@ -46,6 +46,7 @@
 	// expose init_fpu_regs so we can call it from main()
 	.global	init_fpu_regs
 	.global	init_fdc
+	.global update_fdc_track_from_intended_track_register
 	.global	deactivate_fdc
 
 	.global EXTI0_IRQHandler
@@ -58,6 +59,7 @@
         .global main_thread_data
         .global main_thread_actual_track
 	.global fdc_write_flush_count
+	.global fdc_write_dirty_bits
 
 
 	.extern (rowcache)
@@ -137,6 +139,7 @@
 	.endr
 .endm
 
+
 .macro databus_read_extra_delay
 	.rept 2
         	nop
@@ -149,12 +152,14 @@
 	.endr
 .endm
 
-// Use the 64K CCM ram as a sort of circular buffer for debugging
+// Use the 64K CCM ram as a sort of log buffer for debugging
 .macro log_r0_r1_to_ccm_uses_r12
         vmov    r12,reg_ccmram_log
-        strb    r0,[r12],#1     // store the address 08 to 0F (ie 7ff8 to 7fff)
-        strb    r1,[r12],#1     // store the byte written
-        bfc     r12,#16,#8      // Really only need to clear bit 16
+        tst     r12,#0x00010000
+        ITT     EQ
+        strbeq  r0,[r12],#1     // store the address 08 to 0F (ie 7ff8 to 7fff)
+        strbeq  r1,[r12],#1     // store the byte written
+        //bfceq r12,#16,#8      // Really only need to clear bit 16
         vmov    reg_ccmram_log,r12
 .endm
 
@@ -173,8 +178,10 @@ low_64k_base:
 
 .section bss
 	.lcomm high_64k_base,0x10000
-	.lcomm track_buffer,2*9*512		// one track , both sides
-        .lcomm  RTC_address_register,4
+	.lcomm track_buffer,DOUBLE_SIDED_TRACK		// one track , both sides
+	.lcomm track_buffer_dsk2,DOUBLE_SIDED_TRACK	// this has to immediately follow the first track buffer
+      
+	.lcomm  RTC_address_register,4
         .lcomm  RTC_banks,4*16		// these are now in the backup SRAM
 	
 
@@ -297,12 +304,23 @@ main_thread_command:
 main_thread_data:
         .word   0x00000000                      // command arg
 main_thread_actual_track:
-        .word   0x00000000                      // command arg
+        .word   0x00000000                      // DSK1
+        .word   0x00000000                      // DSK2
 fdc_write_flush_count:
         .word   0x00000000
+fdc_write_dirty_bits:
+	.word	0x00000000
+
 
 
 .section .text
+
+.type update_fdc_track_from_intended_track_register, %function
+.align 4
+.thumb_func
+update_fdc_track_from_intended_track_register:
+        vmov    reg_fdc_track,reg_fdc_intended_track
+        bx      lr
 
 .type init_fpu_regs, %function
 .align 4
@@ -353,7 +371,7 @@ init_fpu_regs:
 	movs	r0,#0x100
 	vmov	reg_bit8_high,r0
 
-	mov32	r0,0x10000000
+	mov32	r0,0x10008000
 	vmov	reg_ccmram_log,r0
 
 	// bit31 of reg_fdc_system is used to work out if the fdc is actually active. Default is off
@@ -372,7 +390,7 @@ init_fdc:
 
 	movs	r0,#0
 	vmov	reg_fdc_track,r0
-	vmov	reg_fdc_actual_track,r0
+	vmov	reg_fdc_intended_track,r0
 
 	movs	r0,#0
 	vmov	reg_fdc_sector,r0
@@ -583,6 +601,10 @@ EXTI2_IRQHandler:
 	vmov	r11,reg_gpioa_base
 #ifdef DEBUG_EXTI2_START
 	vstr     reg_zero,[r11,ODR]		
+	nop
+	nop
+	vstr     reg_bit8_high,[r11,ODR]		
+
 #endif
 	
 	vmov	r2,reg_gpioc_base
@@ -838,10 +860,10 @@ fdc_status_read:
 	mov	r3,reg_main_thread_command
 // Make sure 2nd drive reports not ready
 	vmov	r0,reg_fdc_system
-	//tst	r0,#S_DRIVE
-	tst	r0,#0x01		// because we use just one bit to say drives 1, 2 and 3 are not there
-	IT	NE
-	orrne	r1,#F_NOTREADY		// set drive 1 to not ready
+	//tst	r0,#0x01		// because we use just one bit to say drives 1, 2 and 3 are not there
+	//IT	NE
+	//orrne	r1,#F_NOTREADY		// set drive 1 to not ready
+	and	r1,#~(F_NOTREADY)	// all drives ready
 
 	//vmov	r0,reg_button_status
 	//tst	r0,#0x02
@@ -892,7 +914,7 @@ no_command_just_finished:
 #ifdef ENABLE_FDC_CCM_LOGGING
 	movs	r0,#0x18
 	lsrs	r1,#8
-	//log_r0_r1_to_ccm_uses_r12
+	log_r0_r1_to_ccm_uses_r12
 #endif
 
 #ifdef DEBUG_FDC_STATUS_READ
@@ -1007,6 +1029,10 @@ fdc_data_read:
 // non zero read length
 1$:
 	mov32	r0,#track_buffer
+	vmov	r3,reg_fdc_system
+	tst	r3,#0x01		// see if drive 1 or 2
+	IT	NE
+	addne	r0,#(DOUBLE_SIDED_TRACK)
 	vmov	r3,reg_track_buffer_ptr
 	movs	r1,#0
 	ldrb	r1,[r0,r3]		// get byte from the track buffer
@@ -1044,7 +1070,7 @@ fdc_data_read:
 #ifdef ENABLE_FDC_CCM_LOGGING
 	movs	r0,#0x1b
 	lsrs	r1,#8
-	//log_r0_r1_to_ccm_uses_r12
+	log_r0_r1_to_ccm_uses_r12
 #endif
 
 	vmov	r3,reg_exti_base
@@ -1078,7 +1104,7 @@ fdc_ready_read:
 #ifdef ENABLE_FDC_CCM_LOGGING
         movs    r0,#0x1f
 	lsrs	r1,#8
-        //log_r0_r1_to_ccm_uses_r12
+        log_r0_r1_to_ccm_uses_r12
 #endif
 
 	vmov	r3,reg_exti_base
@@ -1182,8 +1208,8 @@ fdc_command_write:
 5$:
 	//clear all bits. D->R[0]=D->Track[D->Drive]? 0:F_TRACK0
 	movs	r0,#0
-	vmov	r3,reg_fdc_actual_track
-	cmp	r3, #0
+	vmov	r1,reg_fdc_intended_track
+	cmp	r1, #0
 	IT	EQ
 	moveq	r0,#F_TRACK0
 	vmov	reg_fdc_status,r0
@@ -1222,7 +1248,7 @@ fdc_command_unused:
 fdc_command_restore:
 	movs	r12,#0
 	vmov	reg_fdc_track,r12
-	vmov	reg_fdc_actual_track,r12
+	vmov	reg_fdc_intended_track,r12
 	movs	r12,#0
 	orrs	r12,#(F_INDEX|F_TRACK0)
 	tst	r1,#C_LOADHEAD
@@ -1233,13 +1259,22 @@ fdc_command_restore:
 	movs	r12,#WD1793_IRQ
 	vmov	reg_fdc_irq_drq,r12
 
-	ldr	r3,=main_thread_command
+
+	vmov	r0,reg_fdc_system
+	ands	r0,#0x01	// Only consider drive 1 and 2 (ie. A and B)
+	ITE	NE
+	lslne	r0,#30		// if drive 2 then we end up with 0x40000000
+	orreq	r0,#0x20000000	// if drive 1 then we end up with 0x20000000
+	
+	// The lowest 8 bits should be zero hence seek to track zero)
+
+	mov32 r3,#main_thread_command
 	//ldr	r1,[r3,0x08]		// get main thread track num
 	//cmp 	r1,r0
 	//beq	2$
 
 	movs	r1,#MAIN_THREAD_SEEK_COMMAND
-        str     r0,[r3, 0x04]           // write cylinder to seek to 
+        str     r0,[r3, 0x04]           // write cylinder to seek to with the upper bits being the drive select
 	mov	reg_main_thread_command,r1
         //str     r1,[r3]                 // write 'SEEK' command
 
@@ -1261,18 +1296,37 @@ fdc_command_seek:
 	bne	2$
 	orrs	r12,#F_TRACK0
 2$:	vmov	reg_fdc_status,r12
-	vmov	reg_fdc_track,r0	// save 'data' reg into 'track' register
-	vmov	reg_fdc_actual_track,r0	// save 'data' reg into actual 'track'
+	//vmov	reg_fdc_track,r0	// save 'data' reg into 'track' register
+	vmov	reg_fdc_intended_track,r0	// save 'data' reg into actual 'track'
 	movs	r12,#WD1793_IRQ
 	vmov	reg_fdc_irq_drq,r12
 
-	ldr	r3,=main_thread_command
-	ldr	r1,[r3,0x08]		// get main thread track num
-	cmp 	r1,r0
-	beq	3$
+	vmov	r1,reg_fdc_system
+	ands	r1,#0x01
+	mov32	r3,#main_thread_actual_track
+	tst	r1,#0x01		// check for drive 2
+	IT	NE
+	addne	r3,#4
+	ldr	r3,[r3]
+	add	r0,r3
+	vmov	r3,reg_fdc_track
+	subs	r0,r3
+	IT	MI
+	movmi	r0,#0
+
+	tst	r1,#0x01
+	ITE	NE
+	lslne	r1,#30
+	orreq	r1,#0x20000000
+
+	orr	r0,r1
+
+	mov32	r3,#main_thread_command
+
+
 
 	movs	r1,#MAIN_THREAD_SEEK_COMMAND
-        str     r0,[r3, 0x04]           // write cylinder to seek to 
+        str     r0,[r3, 0x04]           // write cylinder to seek to with upper bits as drive select
 	mov	reg_main_thread_command,r1
         //str     r1,[r3]                 // write 'SEEK' command
 
@@ -1309,10 +1363,18 @@ fdc_command_step_out_and_update:
 	andeq	r12,#~S_LASTSTEPDIR
 	vmov	reg_fdc_system,r12
 2$:
-	vmov	r0,reg_fdc_actual_track
+	mov32   r3,#main_thread_actual_track
+	tst	r12,#0x01	// check for drive 2
+	IT	NE
+	addne	r3,#4
+	ldr	r3,[r3]
+
+	vmov	r0,reg_fdc_track
+	mov	r12,r0
+
 	//tst	r12,#S_DRIVE	// check if drive 0 or 1
-	tst	r12,#0x01	// check if drive 0 or 1
-	bne	3$
+	//tst	r12,#0x01	// check if drive 0 or 1
+	//bne	3$
 	tst	r1,#0x20
 	ITE	NE
 	subne	r0,#1		// decr track num
@@ -1321,30 +1383,35 @@ fdc_command_step_out_and_update:
 	IT	NE
 	movne	r0,#0			// reset to track0
 
-	vmov	reg_fdc_actual_track,r0
+	vmov	reg_fdc_intended_track,r0
 3$:
 	tst	r1,#C_SETTRACK
 	IT	NE
 	vmovne	reg_fdc_track,r0
 
+	add	r0,r3
+	subs	r0,r12
+	IT	MI
+	movmi	r0,#0
+	// r0 is now the intended actual track to seek to
+
 // zero most of fdc_status
 	movs	r1,#F_INDEX
-	//tst	r12,#S_DRIVE		// r12 still has the system register
-	tst	r12,#0x01
-	bne	4$			// skip checking for track0 if 2nd drive
-	cmp	r0,#0
-	IT	EQ
-	orreq	r1,#F_TRACK0
+
 4$:
 	vmov	reg_fdc_status,r1
 
 	movs	r12,#WD1793_IRQ
 	vmov	reg_fdc_irq_drq,r12
 	
-	ldr	r3,=main_thread_command
-	ldr	r1,[r3,0x08]		// get main thread track num
-	cmp 	r1,r0
-	beq	5$
+	mov32	r3,#main_thread_command
+	vmov	r1,reg_fdc_system
+	ands	r1,#0x01
+	ITE	NE
+	lslne	r1,#30
+	orreq	r1,#0x20000000
+
+	orr	r0,r1
 
 	movs	r1,#MAIN_THREAD_SEEK_COMMAND
         str     r0,[r3, 0x04]           // write cylinder to seek to 
@@ -1527,6 +1594,10 @@ fdc_data_write:
 // WRITE DATA TO SECTOR. non zero write length
 1$:
 	mov32	r0,#track_buffer
+	vmov	r3,reg_fdc_system
+	tst	r3,#0x01
+	IT	NE
+	addne	r0,#(DOUBLE_SIDED_TRACK)		// bump r0 to the track buffer for disk2
 	vmov	r3,reg_track_buffer_ptr
 	strb	r1,[r0,r3]		// store byte in track buffer
 
@@ -1549,8 +1620,19 @@ fdc_data_write:
 	vmov	reg_fdc_status,r12
 	movs	r12,#WD1793_IRQ
 	vmov	reg_fdc_irq_drq,r12
+
+	vmov	r3,reg_fdc_system
+	ands	r3,#0x01
+	ITE	NE
+	lslne	r3,#1		// set bit 1 for dirty bit on drive 2
+	orreq	r3,#0x1		// set bit 0 for dirty bit on drive 1
+
+	mov32	r1,#fdc_write_flush_count
+	ldr	r0,[r1,4]	// get current dirty bits
+	orr	r0,r3		// add in any extra dirty bits
+	str	r0,[r1,4]
+
 	mov32	r0,#FDC_WRITE_FLUSH_DEFAULT
-	ldr	r1,=fdc_write_flush_count
 	str	r0,[r1]				// trigger write after some delay
 2$:
         unrolled_exit_EXTI2
@@ -1586,9 +1668,8 @@ fdc_driveselect_write:
 	and	r12,#~(S_DRIVE)			// S_DRIVE is actually bits 1 and 0
 	and	r1,#(S_DRIVE)			// should be 0 , 1, 2 or 3
 	//cmp	r1,#1
-	tst	r1,#0x01
-	IT	NE
-	orrne	r12,#0x01			// drive 1, 2, or 3 all are effectively drive 1
+	orr	r12,r1
+
 	vmov	reg_fdc_system,r12
 
 #ifdef ENABLE_FDC_CCM_LOGGING
