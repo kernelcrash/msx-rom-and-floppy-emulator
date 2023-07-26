@@ -100,6 +100,27 @@ file to the root of the SD card. After a reset of the STM32F4 board it will load
 menu.rom instead of the first file in the msx directory. See the section on KCMFS 
 for more information.
 
+Compiling the firmware
+----------------------
+
+Normally I use the ARM GNU Toolchain from developer.arm.com, but on modern linux distros you can actually
+use the packaged up ARM cross compiler (for example on debian/ubuntu you might 'apt install gcc-arm-none-eabi').
+I only use linux for compiling, so have no idea how to do it on other platforms.
+
+You will need the STM32F4DISCOVERY board firmware package from st.com. This is called STSW-STM32068. You need to
+extract it to the directory 'above' where you git cloned this repo. eg. on some folder you would see
+```
+   ./STM32F4-Discovery_FW_V1.1.0
+   ./msx-rom-and-floppy-emulator
+```
+To build
+```
+   cd msx-rom-and-floppy-emulator
+   make
+```
+You should end up with a hex and bin file that you can then flash to the stm32f4 board. There's 
+an example below re using USB DFU mode to transfer it.
+
 Copying the firmware to the stm32f407 board
 -------------------------------------------
 

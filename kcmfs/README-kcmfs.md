@@ -22,7 +22,14 @@ Press ? if you want a brief help screen.
 Compilation and Setup
 =====================
 
-Requires sdcc installed.
+Requires sdcc and hex2bin installed.
+
+hex2bin (in 2023) often requires downloading from https://sourceforge.net/projects/hex2bin/files/hex2bin/Hex2bin-2.5.tar.bz2/download
+and compiling locally (ie. it does not seem to be in any package managers these days). If you have trouble compiling hex2bin,
+you might need to update the CPFLAGS at the top of the Makefile to include -fcommon. eg
+```
+CPFLAGS = -std=c99 -O2 -Wall -pedantic -fcommon
+```
 
 cd kcmfs
 make
