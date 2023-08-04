@@ -117,8 +117,9 @@
 #define S_HALT     0x08
 #define S_SIDE     0x10
 #define S_DENSITY  0x20
+#define S_MOTOR    0x80
 
-#define S_LASTSTEPDIR	0x80
+#define S_LASTSTEPDIR	0x100
 #define S_FDC_PRESENT	0x80000000
 
 #define WD1793_IRQ     0x80

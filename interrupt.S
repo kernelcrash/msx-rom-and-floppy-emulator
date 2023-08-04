@@ -903,11 +903,18 @@ no_command_just_finished:
 #endif
 
 // mod the status bits for the next time it is read
+	vmov	r3,reg_fdc_system
+	tst	r3,#S_MOTOR
+	ITE	EQ
+	moveq	r3,#0
+	movne	r3,#F_INDEX
+
 	vmov	r0,reg_fdc_command	// check what the last command was
 	tst	r0,#0x80
 	ITE	NE
 	andne    r12,#(F_BUSY|F_NOTREADY|F_READONLY|F_DRQ)	//CMD >= 0x80
-	eoreq	r12,#F_INDEX					//CMD < 0x80
+	//eoreq	r12,#F_INDEX					//CMD < 0x80
+	eoreq	r12,r3						//CMD < 0x80
 
 2$:	vmov	reg_fdc_status,r12
 
@@ -1208,8 +1215,8 @@ fdc_command_write:
 5$:
 	//clear all bits. D->R[0]=D->Track[D->Drive]? 0:F_TRACK0
 	movs	r0,#0
-	vmov	r1,reg_fdc_intended_track
-	cmp	r1, #0
+	vmov	r3,reg_fdc_intended_track
+	cmp	r3, #0
 	IT	EQ
 	moveq	r0,#F_TRACK0
 	vmov	reg_fdc_status,r0
@@ -1665,8 +1672,8 @@ fdc_driveselect_write:
 #endif
 
 	vmov	r12,reg_fdc_system
-	and	r12,#~(S_DRIVE)			// S_DRIVE is actually bits 1 and 0
-	and	r1,#(S_DRIVE)			// should be 0 , 1, 2 or 3
+	and	r12,#~(S_MOTOR|S_DRIVE)			// S_DRIVE is actually bits 1 and 0. Motor is bit 7
+	and	r1,#(S_MOTOR|S_DRIVE)			// should be 0 , 1, 2 or 3 with motor bit
 	//cmp	r1,#1
 	orr	r12,r1
 
