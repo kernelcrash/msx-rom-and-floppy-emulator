@@ -300,7 +300,6 @@ void config_gpio_portc(void) {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
 	/* Configure GPIO Settings */
-	// Make sure to init the PS2 keyboard pins here.
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 ;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -681,7 +680,7 @@ int __attribute__((optimize("O0")))  main(void) {
 					// main_thread_data contains the track number
 					// bit 31 is DSK3 (not implemented) , bit 30 is DSK2, bit 29 is DSK1
 					load_track(dsk, (main_thread_data>>29), (main_thread_data & 0xff), (char *) &track_buffer);
-					delay_ms(1);
+					//delay_ms(1);
 					for (int drive = 0 ; drive<MAX_DRIVES ; drive++) {
 						if (1<<drive & (main_thread_data>>29)) {
 							main_thread_actual_track[drive] = (main_thread_data & 0xff);
