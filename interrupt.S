@@ -83,7 +83,7 @@
 
 
 .macro unrolled_exit_EXTI2
-	//dsb
+	dsb
 #if defined(DEBUG_EXTI2_END) || defined(DEBUG_EXTI2_ROM_ACCESS) 
 	vstr     reg_bit8_high,[r11,ODR]
         
@@ -129,9 +129,10 @@
 	//str	r0,[r3,RTSR]
 .endm
 
+// This ends up being critical on machines like the FS-A1. The 'write' data is stable only very late in the cycle
 .macro mreq_databus_write_delay
 	//.rept 25
-	.rept 40
+	.rept 34
 		nop
 	.endr
 .endm
@@ -530,7 +531,7 @@ read_io_0x00b5:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _IORQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	ldr	r0,[r2,ODR]		// get current state ODR
@@ -598,6 +599,7 @@ mreq_low:
 1$:
 	// check if slot select is low. TODO. Maybe redo this whole thing with SLOT_SELECT driving the IRQ
 	// rather than _MREQ
+	ldr	r1,[r2,IDR]     // grab portC again because slot select can be late
 	movs	r3,#SLOT_SELECT_MASK
 	tst	r1,r3
 	beq	slot_selected
@@ -660,7 +662,7 @@ slot_selected:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -911,7 +913,7 @@ no_command_just_finished:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -949,7 +951,7 @@ fdc_track_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -983,7 +985,7 @@ fdc_sector_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1058,7 +1060,7 @@ fdc_data_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 
@@ -1092,7 +1094,7 @@ fdc_ready_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	clear_EXTI2_RTSR
@@ -1132,7 +1134,7 @@ fdc_0x7ffd_read:
 // So the 2nd wfe is meant to wait for the +ve edge, but if you get a spurious edge at exactly the time these instructions execute, it can slip through without waiting
         wfe     // wait for +ve edge of _MREQ
 
-	//databus_read_extra_delay
+	databus_read_extra_delay
 
         str     r1,[r2, C_TO_D_OFFSET + MODER]  // MODER set to inputs
 	clear_EXTI2_RTSR
@@ -1180,14 +1182,14 @@ fdc_command_write:
 5$:
 	//clear all bits. D->R[0]=D->Track[D->Drive]? 0:F_TRACK0
 	movs	r0,#0
-	vmov	r1,reg_fdc_actual_track
-	cmp	r1, #0
+	vmov	r3,reg_fdc_actual_track
+	cmp	r3, #0
 	IT	EQ
 	moveq	r0,#F_TRACK0
 	vmov	reg_fdc_status,r0
 
 // if(V&C_IRQ) D->IRQ=WD1793_IRQ;
-6$:	tst	r3,#C_IRQ
+6$:	tst	r1,#C_IRQ
 	ITT	NE
 	movne	r0,#WD1793_IRQ
 	vmovne	reg_fdc_irq_drq,r0
@@ -1477,6 +1479,7 @@ fdc_command_read_address:
 // ---------------------
 
 fdc_track_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1491,6 +1494,7 @@ fdc_track_write:
         unrolled_exit_EXTI2
 
 fdc_sector_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1506,6 +1510,7 @@ fdc_sector_write:
         unrolled_exit_EXTI2
 
 fdc_data_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1552,6 +1557,7 @@ fdc_data_write:
 
 // -----------------
 fdc_side_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 
@@ -1569,6 +1575,7 @@ fdc_side_write:
         unrolled_exit_EXTI2
 
 fdc_driveselect_write:
+	mreq_databus_write_delay
 	ldr	r1,[r2,C_TO_D_OFFSET+IDR]	// read databus again
 	lsrs	r1,r1,#8
 #ifdef ENABLE_FDC_CCM_LOGGING

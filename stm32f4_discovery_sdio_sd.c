@@ -1762,7 +1762,8 @@ SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint32_t WriteAddr, uint16_t Bl
     return(errorstatus);
   }
 
-  SDIO_DataInitStructure.SDIO_DataTimeOut = SD_DATATIMEOUT;
+  // Applying suggestion here https://community.st.com/s/question/0D50X00009XkbCpSAJ/dma-transfer-on-multi-block-write-to-sd-card
+  SDIO_DataInitStructure.SDIO_DataTimeOut = NumberOfBlocks * SD_DATATIMEOUT;
   SDIO_DataInitStructure.SDIO_DataLength = NumberOfBlocks * BlockSize;
   SDIO_DataInitStructure.SDIO_DataBlockSize = (uint32_t) 9 << 4;
   SDIO_DataInitStructure.SDIO_TransferDir = SDIO_TransferDir_ToCard;
