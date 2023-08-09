@@ -567,7 +567,9 @@ int __attribute__((optimize("O0")))  main(void) {
         }
 
 
+#ifdef ENABLE_RTC_RAM_BANK_EMULATION
 	config_PC0_int();
+#endif
 	config_PC2_int();
 
 
