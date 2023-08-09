@@ -12,6 +12,28 @@
 //#include "dos.h"
 
 
+unsigned char getjoy() {
+  __asm
+        push af
+1$:     xor a
+        call 0x00d8     ; triggers . 0 = test space
+        or a
+        jr z, 2$
+// space bar pressed
+        ld l,#0x80      ; return bit 7 high if trigger pressed
+        jr 3$
+
+// test cursor direction
+2$:     call 0x00d5
+        or a
+        jr z, 1$
+        ld l,a
+3$:     pop af
+  __endasm;
+
+}
+
+
 void my_puts(char *s) {
         while (*s != 0) {
                 putchar(*s);
@@ -19,9 +41,18 @@ void my_puts(char *s) {
         }
 }
 
+// From https://www.msx.org/forum/msx-talk/development/problem-sdcc-compiler-ddexe-and-makefileexe?page=7
+void cls2(void)
+{
+  putchar(0x1b);
+  putchar(0x45);
+}
+
 // Look at map.grauw.nl/resources/msxbios.php
 //
 #define NUMBER_OF_DIGITS 16  
+
+#define MAX_PAGES 9
 
 void uitoa(unsigned int value, char* string, int radix)
 {
@@ -61,6 +92,7 @@ void help_page() {
 
 
 void main(void) {
+	int redraw = 1;
 	int c;
 	char buf[256];
 	unsigned char *cmd_reg = (unsigned char *) 0x8000;
@@ -70,6 +102,9 @@ void main(void) {
 	unsigned int i,j;
 	unsigned int page_number, page_size, offset;
 
+#ifdef JOYMODE
+        char selection = 'a';
+#endif
 	page_number=1;
 	page_size=20;
 
@@ -77,6 +112,7 @@ void main(void) {
 	*cmd_reg = TRIGGER_DIRECTORY_LOAD;
 	// set 40 column
 	initxt();
+#ifndef DISABLE_LOAD_DIRECTORY
 	// Wait for directory list to load
 	for (i=0;i<65535;i++) {
 		if (!(*cmd_reg & 0x80)) {
@@ -84,37 +120,90 @@ void main(void) {
 		}
 		for (j=0;j<1000;j++);
 	}
+#endif
 
 
 	while (1) {
-		cls();
-    		my_puts("== Kernelcrash MSX File Selector ==\r\n");
-    		my_puts("===================================\r\n");
-		for (i=0; i<page_size;i++) {
-			buf[0]='a'+i;
-			buf[1]='.';
-			j=0;
-			if ((( (page_number-1)*page_size)+i) < *fname_count) {
-				while (j < 34) {
-					offset = (((page_number-1)*page_size)*FNAME_ENTRY_LENGTH)+ (i* FNAME_ENTRY_LENGTH);
-					if (fname_list[offset+j]) {
-						buf[j+2]=fname_list[offset+j];
-					} else {
-						break;
+		if (redraw) {
+			cls2();
+			my_puts("== Kernelcrash MSX File Selector ==\r\n");
+			my_puts("===================================\r\n");
+			for (i=0; i<page_size;i++) {
+				buf[0]='a'+i;
+				buf[1]='.';
+				j=0;
+				if ((( (page_number-1)*page_size)+i) < *fname_count) {
+					while (j < 34) {
+						offset = (((page_number-1)*page_size)*FNAME_ENTRY_LENGTH)+ (i* FNAME_ENTRY_LENGTH);
+						if (fname_list[offset+j]) {
+							buf[j+2]=fname_list[offset+j];
+						} else {
+							break;
+						}
+						j++;
 					}
-					j++;
 				}
+				buf[j+2]='\r';
+				buf[j+3]='\n';
+				buf[j+4]=0;
+				my_puts(buf);
 			}
-			buf[j+2]='\r';
-			buf[j+3]='\n';
-			buf[j+4]=0;
+			my_puts("<<<<< PAGE ");
+			uitoa(page_number,buf,10);
 			my_puts(buf);
+			my_puts(" >>>>>   (? - help) ");
+			putchar(selection);
+			putchar(' ');
 		}
-		my_puts("<<<<< PAGE ");
-		uitoa(page_number,buf,10);
-		my_puts(buf);
-		my_puts(" >>>>>   (? - help)");
 
+
+#ifdef JOYMODE
+                c = getjoy();
+#else
+                c = getchar();
+#endif
+
+#ifdef JOYMODE
+                if (c==3) {
+                        redraw=1;
+                        page_number = (page_number <=MAX_PAGES)? page_number+1 : MAX_PAGES;
+                        continue;
+                }
+                if (c==7) {
+                        redraw=1;
+                        page_number = (page_number>1)? page_number-1 : 1;
+                        continue;
+                }
+                if ((c==5) || (c==1)) {
+                        redraw=0;
+                        if (c==5) {
+                                selection = (selection=='t')? 't' : selection+1;
+                        } else {
+                                selection = (selection=='a')? 'a' : selection-1;
+                        }
+                        putchar(0x1d);
+                        putchar(0x1d);
+                        putchar(selection);
+                        putchar(' ');
+                        for (i=0;i<10000;i++) {
+				 __asm__ ("nop");
+				 __asm__ ("nop");
+				 __asm__ ("nop");
+			}
+                }
+                if (c==0x80) {
+                        offset = (((page_number-1)*page_size)*FNAME_ENTRY_LENGTH)+ ((selection-'a')* FNAME_ENTRY_LENGTH);
+                        for (j=0;j<FNAME_ENTRY_LENGTH;j++) {
+                                if (fname_list[offset+j]!=0) {
+                                        fname_to_load[j]=fname_list[offset+j];
+                                } else {
+                                        fname_to_load[j]=0;
+                                        break;
+                                }
+                        }
+                        trigger_file_load_and_reset();
+                }
+#else
 		c = getchar();
 		// check page number
 		if ((c>='1') && (c<='9')) {
@@ -140,6 +229,11 @@ void main(void) {
 			}
 			trigger_file_load_and_reset();
 		}
+#endif
 	
 	}
 }
+
+
+
+
