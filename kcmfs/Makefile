@@ -17,8 +17,7 @@ ADDR_DATA = 0xc000
 
 VERBOSE = -V
 CCFLAGS = $(VERBOSE) $(PLATFORM) --code-loc $(ADDR_CODE) --data-loc $(ADDR_DATA) \
-          --no-std-crt0 --opt-code-size --out-fmt-ihx \
-	  -DJOYMODE
+          --no-std-crt0 --opt-code-size --out-fmt-ihx 
 
 OBJECTS = $(CRT0)
 SOURCES = menu.c
