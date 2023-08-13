@@ -55,6 +55,55 @@ void blink_pa1(int delay) {
 }
 
 
+#ifdef ENABLE_OLED_DISPLAY
+// make some modifications to make a long filename fit better on the display
+// make it fit in 34 chars , and if it has Disk 1 or Disk n in the name , make
+// that appear at the end of the 34 chars as #1, #2 etc
+void mangle_oled_filename(char *src, char *dest) {
+	int s=0, d=0;
+	int skip=0;
+	char *p;
+
+	while (src[s] && d < 34) {
+		// get rid of the msx/ prefix
+		if (src[s]=='/') {
+			d=0;
+			s++;
+			skip=s;
+		}
+		dest[d]=src[s];
+		s++;
+		d++;
+	}
+	dest[d]=0;
+	if ((strlen(src)-skip)>34) {
+		p=src;
+		while (*p) {
+			if ((*p== 'd') || (*p=='D')) {
+				if ((p[1]=='i') || (p[1]=='I')) {
+					if ((p[2]=='s') || (p[2]=='S')) {
+						if ((p[3]=='k') || (p[3]=='K')) {
+							if (((p[4]==' ') && (p[5]>='0' && p[5]<='9')) || (p[4]>='0' && p[4]<='9')) {
+								// p pounts to a 5 or 6 char string of 'Disk n' or 'Diskn'
+								if (p[4]==' ') {
+									dest[d-2]='#';
+									dest[d-1]=p[5];
+								} else {
+									dest[d-2]='#';
+									dest[d-1]=p[4];
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+			p++;
+		}
+	}
+}
+#endif
+	
 uint32_t suffix_match(char *name, char *suffix) {
 	if (strlen(name)>strlen(suffix)) {
 		if (strncasecmp (&name[strlen(name)-strlen(suffix)],suffix,strlen(suffix)) == 0) {

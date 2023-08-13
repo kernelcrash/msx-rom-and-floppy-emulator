@@ -10,6 +10,8 @@ SRCS=main.c system_stm32f4xx.c util.c
 # Library modules
 SRCS += stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_pwr.c stm32f4xx_syscfg.c
 SRCS += stm32f4xx_tim.c misc.c 
+# Only include these is ENABLE_OLED_DISPLAY is set
+SRCS += stm32f4xx_i2c.c i2c.c oled.c
 
 # Add in stuff for SD access
 SRCS += diskio.c  ff.c ffunicode.c stm32f4_discovery.c  stm32f4_discovery_sdio_sd.c system_stm32f4xx.c misc_handlers.c stm32f4xx_sdio.c stm32f4xx_dma.c
@@ -63,7 +65,7 @@ CFLAGS += -ffixed-r10
 #CFLAGS += -DDEBUG_FDC_STATUS_READ
 #CFLAGS += -DENABLE_FDC_CCM_LOGGING
 #CFLAGS += -DDEBUG_FILENAME
-
+CFLAGS += -DENABLE_OLED_DISPLAY
 
 # Include files from STM libraries
 CFLAGS += -I$(STM_COMMON)/Utilities/STM32F4-Discovery

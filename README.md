@@ -3,6 +3,22 @@ msx-rom-and-floppy-emulator
 
 More info at https://www.kernelcrash.com/blog/emulating-roms-and-floppy-drives-in-msx/
 
+EXPERIMENTAL OLED DISPLAY EXAMPLE
+=================================
+
+This branch is meant to be an example of how you might incorporate some OLED display support
+
+- I used one of those 128x64 SSD 1306 OLED screens with an I2C interface
+- You need to wire VCC to +3.3V and GND to GND
+- Wire SCL to PB10 and SDA to PB11
+- Look for all the references to ENABLE_OLED_DISPLAY. In the Makefile there are some extra source files and the CFLAGS includes ENABLE_OLED_DISPLAY
+- There are some points in main.c where the filename of the file loaded from SD is known. This is used as a starting point for what to display
+- I just used some example code from https://stm32f4-discovery.net/2015/05/library-61-ssd1306-oled-i2c-lcd-for-stm32f4xx/. Most of the functions in oled.c and it2.c come from this example. It's been reduced to down to the minimum required. ie. there is only one font and some methods like drawing cricles are not included. 
+- Two lines of text printed to the OLED display. Due to the font used you can only do about 17 characters per line. 
+- As a lot of filenames are longer than 34 characters (2x17), some 'mangling' of the filename is done so that the disk number is shown at the very end of the 2nd line as #1 or #2 etc.
+
+
+
 Overview
 --------
 

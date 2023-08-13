@@ -11,6 +11,11 @@
 #include "stm32f4xx.h"
 #include "util.h"
 
+#ifdef ENABLE_OLED_DISPLAY
+#include "i2c.h"
+#include "oled.h"
+#endif
+
 #include "stm32f4_discovery.h"
 #include "stm32f4_discovery_sdio_sd.h"
 #include "ff.h"
@@ -40,7 +45,7 @@ GPIO_InitTypeDef  GPIO_InitStructure;
 // FATFS stuff
 FRESULT res;
 FILINFO fno;
-DIR dir;
+//DIR dir;
 FATFS fs32;
 char* path;
 UINT BytesRead;
@@ -501,6 +506,9 @@ FRESULT __attribute__((optimize("O0"))) save_track(DSK *dsk, volatile uint32_t *
 int __attribute__((optimize("O0")))  main(void) {
 
 	TCHAR full_filename[128];
+#ifdef ENABLE_OLED_DISPLAY
+	TCHAR mangled_filename[128];
+#endif
 	uint64_t next_button_debounce;
 	int first_time;
 	uint32_t	button_state;
@@ -588,6 +596,13 @@ int __attribute__((optimize("O0")))  main(void) {
 	}
 
 
+#ifdef ENABLE_OLED_DISPLAY
+	oled_init();
+	oled_display(2,4,"Kernelcrash      ");
+	oled_display(2,20,"ROM/FDC emulator");
+#endif
+
+
 	disk_index=0;	// if this is 1 then it means a subdir was previously selected
 	while(1) {
 		button_state = GPIOA->IDR;
@@ -644,6 +659,10 @@ int __attribute__((optimize("O0")))  main(void) {
 					// trigger a seek in the next block of code.
 					main_thread_data = 0 | 0x40000000 | 0x20000000;
 					main_thread_command_reg = MAIN_THREAD_BUTTON_COMMAND;
+#ifdef ENABLE_OLED_DISPLAY
+					mangle_oled_filename(dsk[0].disk_filename, mangled_filename);
+					oled_display(2,4,mangled_filename);
+#endif
 					// this willl activate the FDC emulation 
 					init_fdc();
 				} else {
@@ -658,6 +677,10 @@ int __attribute__((optimize("O0")))  main(void) {
 							memset(&dsk[drive].fil, 0, sizeof(FIL));
 						}
 					}
+#ifdef ENABLE_OLED_DISPLAY
+					mangle_oled_filename(full_filename, mangled_filename);
+					oled_display(2,4,mangled_filename);
+#endif
 					// Must be a ROM
 					deactivate_fdc();
 					load_rom(full_filename,(char *)CCMRAM_BASE,(char *)&high_64k_base);
@@ -742,6 +765,10 @@ int __attribute__((optimize("O0")))  main(void) {
 						// trigger a seek in the next block of code.
                                                 main_thread_data = 0;
                                                 main_thread_command_reg = MAIN_THREAD_SEEK_COMMAND;
+#ifdef ENABLE_OLED_DISPLAY
+						mangle_oled_filename(dsk[0].disk_filename, mangled_filename);
+						oled_display(2,4,mangled_filename);
+#endif
 						// this willl activate the FDC emulation 
 						init_fdc();
 					} else {
@@ -754,6 +781,10 @@ int __attribute__((optimize("O0")))  main(void) {
 							}
 							dsk[drive].disk_filename[0] = 0;	// null out the first char of the filename (helpful in debugging)
 						}
+#ifdef ENABLE_OLED_DISPLAY
+						mangle_oled_filename(full_filename, mangled_filename);
+						oled_display(2,4,mangled_filename);
+#endif
 						// Must be a ROM
 						deactivate_fdc();
 						load_rom(full_filename,(char *)CCMRAM_BASE,(char *)&high_64k_base);

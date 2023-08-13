@@ -25,5 +25,8 @@ FRESULT load_rom(char *fname,char *lowbuffer, char* highbuffer);
 void load_directory(char *dirname, unsigned char *buffer);
 uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk_index_max);
 
+#ifdef ENABLE_OLED_DISPLAY
+void mangle_oled_filename(char *src, char *dest);
+#endif
 
 #endif
