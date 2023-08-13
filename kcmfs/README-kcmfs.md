@@ -19,20 +19,23 @@ selected.
 
 Press ? if you want a brief help screen.
 
-Compilation and Setup
-=====================
+Assembly and Setup
+==================
 
-Requires sdcc and hex2bin installed.
+Requires asmz80 (part of asmx)  and srec_cat to build. 
 
-hex2bin (in 2023) often requires downloading from https://sourceforge.net/projects/hex2bin/files/hex2bin/Hex2bin-2.5.tar.bz2/download
-and compiling locally (ie. it does not seem to be in any package managers these days). If you have trouble compiling hex2bin,
-you might need to update the CPFLAGS at the top of the Makefile to include -fcommon. eg
-```
-CPFLAGS = -std=c99 -O2 -Wall -pedantic -fcommon
-```
 
-cd kcmfs
-make
+$ ./build.sh menu.asm
+blah/asmx/asmz80
+blah/bin/srec_cat
+Pass 1
+Pass 2
+
+00000 Total Error(s)
+
+srec_cat: menu.asm.s37: 1: warning: no header record
+srec_cat: menu.asm.s37: 26: warning: no execution start address record
+
 
 That will produce a ROM image
 
