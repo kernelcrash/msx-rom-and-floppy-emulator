@@ -23,7 +23,7 @@ uint32_t get_romtype_from_filename(char *fname);
 uint32_t get_pagemap_default_by_romtype(uint32_t romtype);
 FRESULT load_rom(char *fname,char *lowbuffer, char* highbuffer);
 void load_directory(char *dirname, unsigned char *buffer);
-uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk_index_max);
+uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk_index_max, uint32_t direction_hint);
 
 #ifdef ENABLE_OLED_DISPLAY
 void mangle_oled_filename(char *src, char *dest);

@@ -183,7 +183,10 @@ char *find_disk_n(char *haystack, int n) {
 
 /*
  * load_disks
+ * TODO: This is getting very complicated and needs a rethink. 
+ *
  * if filename is a path to a directory then look inside that directory for
+ *
  *    something to load into dsk[0]
  *    something to load into dsk[1]
  *
@@ -203,19 +206,27 @@ char *find_disk_n(char *haystack, int n) {
  *    check if the filename ends in .dsk or .dsk1 and load it into dsk[0] only
  *
  * if no dsk files are found at all return '0' (ie failure)
+ *
+ *  This all gets horribly complicated if you are hitting the NEXT or PREV keys and are hoping that it
+ *  magically goes in and out of subdirectories as it goes. The direction_hint is to help it figure that out.
+ *
+ *   direction_hint = 0 if you are traversing forward (ie. NEXT button)
+ *   direction_hint = 1 if you are traversing backwards (ie. PREV button)
  * */
-uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk_index_max) {
+uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk_index_max, uint32_t direction_hint) {
 	FILINFO fno;
 	FRESULT res;
 	DIR	dir;
 	// tmp_disk_n_name is the disk n we are looking for
 	// tmp_disk_n_plus_1_name is the disk name that is n+1 (eg. if we were searching for Disk 1, then this would be used for Disk 2. It is a sort of additional fallback for disk sets where you leave out disk 1 (which might be an intro) and the main game starts at disk 2
-	char 	tmp_disk_n_name[128],tmp_disk_n_plus_1_name[128],fallback_fname[128];
+	char 	tmp_disk_n_name[128],tmp_disk_n_plus_1_name[128],tmp_first_disk_n_name[128],tmp_final_disk_n_name[128],fallback_name[128];
 	uint32_t	min,max;
 
 	tmp_disk_n_name[0]=0;
 	tmp_disk_n_plus_1_name[0]=0;
-	fallback_fname[0]=0;
+	tmp_first_disk_n_name[0]=0;
+	tmp_final_disk_n_name[0]=0;
+	fallback_name[0]=0;
 
 
 	res = f_stat(filename,&fno);
@@ -229,24 +240,24 @@ uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk
 				res = f_readdir(&dir,&fno);
 				if (res != FR_OK || fno.fname[0] == 0) break;
 				if (suffix_match(fno.fname,".dsk")) {
-					// If disk_index is 1 on entry it means we want to load 'the first disk' regardless of whether it has 'Disk 1' in the filename
-					// If disk_index is 0 on entry it means we don't know if there are any disks, but if there is one then we would want to load 'Disk 1' OR 'the first .dsk it sees
-					if ((*disk_index == 1) || (*disk_index == 0)) {
-						// disk_index 1 is a special case where we allow the first file we see as disk 1
-						*disk_index = 1;
-						strcpy(fallback_fname,fno.fname);
+					// The verty first dsk found becomes the fallback name
+					if (fallback_name[0]==0)  {
+						strcpy(fallback_name,fno.fname);
 					}
-					// work out the highest numbered disk
+					// work out the lowest and highest numbered disk
 					for (uint32_t i=9;i>0;i--) {
 						if (find_disk_n(fno.fname,i)!=NULL) {
 							if (i>max) {
 								max = i;
+								strcpy(tmp_final_disk_n_name,fno.fname);
 							}
 							if (i<min) {
 								min = i;
+								strcpy(tmp_first_disk_n_name,fno.fname);
 							}
 						}
 					}
+					// This will screw up if someone has a 'Disk 0'
 					if (find_disk_n(fno.fname,*disk_index)!=NULL) {
 						// Disk n found
 						strcpy(tmp_disk_n_name,fno.fname);
@@ -271,31 +282,53 @@ uint32_t load_disks(DSK *dsk,char *filename,uint32_t *disk_index, uint32_t *disk
 				*disk_index_max = 1;
 			}
 
-			if (tmp_disk_n_name[0]) {
+			if ((*disk_index!=0) && (tmp_disk_n_name[0])) {
 				// disk n was found
 				strcpy(dsk[0].disk_filename,filename);
 				strcat(dsk[0].disk_filename,"/");
 				strcat(dsk[0].disk_filename,tmp_disk_n_name);
 			} else {
-				if (tmp_disk_n_plus_1_name[0]) {
-					// we could not find the disk n we wanted but we did find n+1
+				if ((*disk_index!=0) && (tmp_disk_n_plus_1_name[0])) {
+					// we could not find the disk n we wanted but we did find n+1. This is for those games that can start from 'Disk 2'
 					strcpy(dsk[0].disk_filename,filename);
 					strcat(dsk[0].disk_filename,"/");
 					strcat(dsk[0].disk_filename,tmp_disk_n_plus_1_name);
 					(*disk_index)++;  // push the disk number up. TODO this will probably screw up the PREV button working completely correctly
 				} else {
-					if (fallback_fname[0]) {
-						strcpy(dsk[0].disk_filename,filename);
-						strcat(dsk[0].disk_filename,"/");
-						strcat(dsk[0].disk_filename,fallback_fname);
-					} else {
-						// we didnt find anything
-						dsk[0].disk_filename[0]=0;
-						dsk[1].disk_filename[0]=0;
+					if (*disk_index==0) {
+						// This is a special case when you are 'entering a subdirectory'
+						// If we found files with Disk n in them
+						if (tmp_first_disk_n_name[0] && tmp_final_disk_n_name[0]) {
+							if (direction_hint==FORWARDS) {
+								// forward direction so use whatever was the min filename
+								strcpy(dsk[0].disk_filename,filename);
+								strcat(dsk[0].disk_filename,"/");
+								strcat(dsk[0].disk_filename,tmp_first_disk_n_name);
+								*disk_index = min; 
+							} else {
+								// reverse direction, so use the max filename
+								strcpy(dsk[0].disk_filename,filename);
+								strcat(dsk[0].disk_filename,"/");
+								strcat(dsk[0].disk_filename,tmp_final_disk_n_name);
+								*disk_index = max;  
+							}
+						} else {
+							if (fallback_name[0]) {
+								strcpy(dsk[0].disk_filename,filename);
+								strcat(dsk[0].disk_filename,"/");
+								strcat(dsk[0].disk_filename,fallback_name);
+								*disk_index=1;
+								*disk_index_max = 1;
+							} else {
+								// we didnt find anything
+								dsk[0].disk_filename[0]=0;
+								dsk[1].disk_filename[0]=0;
 
-						*disk_index=0;		// TODO. not sure if this is required.
+								*disk_index=0;		// TODO. not sure if this is required.
 
-						return NO_DISKS_FOUND;
+								return NO_DISKS_FOUND;
+							}
+						}
 					}
 				}
 			}

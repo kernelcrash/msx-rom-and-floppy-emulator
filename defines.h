@@ -174,3 +174,6 @@
 #define DISK1_FOUND 1
 #define NO_DISKS_FOUND 0
 
+//------ To do with the next/prev directory traversal
+#define FORWARDS 0
+#define BACKWARDS 1

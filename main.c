@@ -512,7 +512,8 @@ int __attribute__((optimize("O0")))  main(void) {
 	uint64_t next_button_debounce;
 	int first_time;
 	uint32_t	button_state;
-	int32_t	file_counter;
+	int32_t		file_counter;
+	uint32_t	direction_hint;
         DSK dsk[MAX_DRIVES];
 
 	// You have to disable lazy stacking BEFORE initialising the scratch fpu registers
@@ -584,6 +585,7 @@ int __attribute__((optimize("O0")))  main(void) {
 	first_time=TRUE;
 	next_button_debounce=0;
 	file_counter=-1;
+	direction_hint=FORWARDS;
 
 	// attempt to load the special menu rom. See kcmfs
 	res = load_rom("menu.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
@@ -628,6 +630,7 @@ int __attribute__((optimize("O0")))  main(void) {
 							res = f_readdir(&dir, &fno);                 
 						}
 					}
+					direction_hint=BACKWARDS;
 				} else {
 					// if we hit the next button or this is the first time through
 					if (disk_index >=1) {
@@ -647,6 +650,7 @@ int __attribute__((optimize("O0")))  main(void) {
 							file_counter=0;
 						}
 					}
+					direction_hint=FORWARDS;
 				}
 				strcpy(full_filename,root_directory);
 				strcat(full_filename,"/");
@@ -654,7 +658,7 @@ int __attribute__((optimize("O0")))  main(void) {
 #ifdef DEBUG_FILENAME
 				strcpy(debug_filename,full_filename);
 #endif
-				if (load_disks(dsk,full_filename,&disk_index,&disk_index_max)) {
+				if (load_disks(dsk,full_filename,&disk_index,&disk_index_max,direction_hint)) {
 					load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
 					// trigger a seek in the next block of code.
 					main_thread_data = 0 | 0x40000000 | 0x20000000;
@@ -760,7 +764,8 @@ int __attribute__((optimize("O0")))  main(void) {
 
 					// load_disks returns 0 if if could not find a disk
 					disk_index=1;
-					if (load_disks(dsk,full_filename,&disk_index,&disk_index_max)) {
+					direction_hint=FORWARDS;
+					if (load_disks(dsk,full_filename,&disk_index,&disk_index_max,direction_hint)) {
 						load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
 						// trigger a seek in the next block of code.
                                                 main_thread_data = 0;
