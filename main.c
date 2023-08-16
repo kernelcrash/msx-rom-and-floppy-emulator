@@ -619,6 +619,8 @@ int __attribute__((optimize("O0")))  main(void) {
 					}
 					// main_thread_data contains the track number
 					load_track(&fil, main_thread_data, (char *) &track_buffer, track_size);
+					// Some games tend to prefer a bit more of a delay between track seeks
+					delay_ms(1);
 					main_thread_actual_track = main_thread_data;
 					main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
 					break;
