@@ -709,7 +709,7 @@ int __attribute__((optimize("O0")))  main(void) {
 					// main_thread_data contains the track number
 					// bit 31 is DSK3 (not implemented) , bit 30 is DSK2, bit 29 is DSK1
 					load_track(dsk, (main_thread_data>>29), (main_thread_data & 0xff), (char *) &track_buffer);
-					//delay_ms(1);
+					delay_ms(1);
 					for (int drive = 0 ; drive<MAX_DRIVES ; drive++) {
 						if (1<<drive & (main_thread_data>>29)) {
 							main_thread_actual_track[drive] = (main_thread_data & 0xff);
