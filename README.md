@@ -148,7 +148,7 @@ probably work).
 KCMFS
 -----
 
-In the kcmfs directory is an sdcc based MSX program that presents a menu to
+In the kcmfs directory is a Z80 assembly based MSX program that presents a menu to
 the user. It lists the files in the msx directory of the SD card and let's 
 you select one, and consequently reboots off it. If you put kcmfs (menu.rom) in
 the root of the SD card, it will always boot menu.rom  after a reset of the
