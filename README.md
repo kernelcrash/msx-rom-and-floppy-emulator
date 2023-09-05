@@ -85,6 +85,17 @@ In order to load a disk, you need a diskrom. Put one disk rom in the root
 of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom with MD5
 0ed6dbd654da55b56dfb331dd3df82f0 . 
 
+The disk ROM is technically a 'Disk BASIC ROM' so it means you need to get to BASIC
+first. A lot of MSX machines boot straight to BASIC, so it's not an issue. But some machines,
+will boot to a menu first. You need to find the option to get to BASIC. As an example, the 
+Panasonic FS-A1 requires you to press F8 (or shift F3) to get to BASIC, but it will let you 
+bypass this 'Deskpack' menu if you hold down DEL when the machine is booting.
+
+Also, this project was mainly intended for MSX machines that did not have an internal
+floppy drive controller already, but a recent reader indicated that holding down CTRL on
+their MSX machine disables the use of the internal floppy disk controller, hence handing
+over control to the disk ROM in the stm32f4 board.
+
 The WD2793 floppy disk controller support was based on WD1793.c in fMSX by Marat Fayzullin. Note that:
 
  - Not all the chip is implemented. But most of the stuff you want is.
