@@ -98,6 +98,8 @@ file ending in '.dsk2'. If you had a 2 disk game and you had 'Game disk 2.dsk' i
 and then pressed NEXT, it will actually pop you out of the subdirectory and select the next
 thing in the main list you see in kcmfs.
 
+If all that sounded too complicated, just copy disk and rom files in to the msx directory.
+
 In order to use disks at all, you need a diskrom. Put one disk rom in the root
 of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom with MD5
 0ed6dbd654da55b56dfb331dd3df82f0 . 
