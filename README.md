@@ -98,16 +98,23 @@ file ending in '.dsk2'. If you had a 2 disk game and you had 'Game disk 2.dsk' i
 and then pressed NEXT, it will actually pop you out of the subdirectory and select the next
 thing in the main list you see in kcmfs.
 
-If all that sounded too complicated, just copy disk and rom files in to the msx directory.
+If all that sounded too complicated, just copy disk and rom files in to the msx directory. That
+still works the same as previous versions.
 
 In order to use disks at all, you need a diskrom. Put one disk rom in the root
 of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom with MD5
 0ed6dbd654da55b56dfb331dd3df82f0 . 
 
 The disk ROM is technically a 'Disk BASIC ROM' so it means you need to get to BASIC
+<<<<<<< HEAD
 first. A lot of MSX machines boot straight to BASIC, so it's not an issue. But some machines,
 will boot to a menu first. You need to find the option to get to BASIC. As an example, the 
 Panasonic FS-A1 requires you to press F8 (or shift F3) to get to BASIC, but it will let you 
+=======
+first. A lot of MSX machines boot straight to BASIC, so it's not an issue. But some machines
+will boot to a menu first. You need to find the option to get to BASIC. As an example, the
+Panasonic FS-A1 requires you to press F8 (shift F3) to get to BASIC, but it will let you
+>>>>>>> 2736fd0 (readme updates)
 bypass this 'Deskpack' menu if you hold down DEL when the machine is booting.
 
 Also, this project was mainly intended for MSX machines that did not have an internal
