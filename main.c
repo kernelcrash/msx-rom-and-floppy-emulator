@@ -24,10 +24,12 @@ extern volatile uint8_t *high_64k_base;
 
 extern volatile uint32_t main_thread_command;
 extern volatile uint32_t main_thread_data;
-extern volatile uint32_t main_thread_actual_track;
+extern volatile uint32_t main_thread_actual_track[2];
 
 extern volatile uint8_t *track_buffer;
 extern volatile uint32_t fdc_write_flush_count;
+extern volatile uint32_t fdc_write_dirty_bits;
+
 
 #ifdef ENABLE_SEMIHOSTING
 extern void initialise_monitor_handles(void);   /*rtt*/
@@ -42,6 +44,13 @@ DIR dir;
 FATFS fs32;
 char* path;
 UINT BytesRead;
+
+uint32_t disk_index;
+uint32_t disk_index_max;
+
+#ifdef DEBUG_FILENAME
+	char debug_filename[128];
+#endif
 
 #if _USE_LFN
     static char lfn[_MAX_LFN + 1];
@@ -291,7 +300,6 @@ void config_gpio_portc(void) {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
 	/* Configure GPIO Settings */
-	// Make sure to init the PS2 keyboard pins here.
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 ;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -402,47 +410,84 @@ void config_gpio_buttons(void) {
 
 
 
-FRESULT __attribute__((optimize("O0")))  load_track(FIL *fil, uint32_t track_number, char *track, uint32_t track_size) {
+FRESULT __attribute__((optimize("O0")))  load_track(DSK *dsk, uint32_t disk_selects, uint32_t track_number, char *track_buffer) {
         UINT BytesRead;
         FRESULT res;
 	uint32_t offset;
+	uint32_t track_size;
+	uint32_t drive;
+	char *b;
 
-	if (track_size == 9 * 512) {
-		// single sided
-		offset = track_number * 9 * 512 * 1;
-	} else {
-		// double sided
-		offset = track_number * 9 * 512 * 2;
-	}
+	b = track_buffer;
+	for (drive=0; drive<MAX_DRIVES;drive++) {
+		if ((1<<drive) & disk_selects) {
+			if (dsk[drive].fil.obj.id) {	
+				if (!dsk[drive].double_sided) {
+					// single sided
+					offset = track_number * 9 * 512 * 1;
+					track_size = SINGLE_SIDED_TRACK;
+				} else {
+					// double sided
+					offset = track_number * 9 * 512 * 2;
+					track_size = DOUBLE_SIDED_TRACK;
+				}
 
-	res = f_lseek(fil, offset);
-	if (res == FR_OK) {
-		res = f_read(fil, track, 2 * 9 * 512, &BytesRead);
-	} else {
-                blink_pa6_pa7(1000);
+				res = f_lseek(&dsk[drive].fil, offset);
+				if (res == FR_OK) {
+					res = f_read(&dsk[drive].fil, b, track_size, &BytesRead);
+				} else {
+       				         blink_pa6_pa7(1000);
+				}
+			}
+		}
+		b+=DOUBLE_SIDED_TRACK;
 	}
 
 	return res;
 }
 
-FRESULT __attribute__((optimize("O0"))) save_track(FIL *fil, uint32_t track_number, char *track, uint32_t track_size) {
+FRESULT __attribute__((optimize("O0"))) save_track(DSK *dsk, volatile uint32_t *actual_track, char *track_buffer) {
         UINT BytesWritten;
         FRESULT res;
 	uint32_t offset;
+	uint32_t track_size;
+	uint32_t drive;
+	char *b;
 
-	if (track_size == 9 * 512) {
-		// single sided
-		offset = track_number * 9 * 512 * 1;
-	} else {
-		// double sided
-		offset = track_number * 9 * 512 * 2;
-	}
+	b = track_buffer;
 
-	res = f_lseek(fil, offset);
-	if (res == FR_OK) {
-		res = f_write(fil, track, track_size, &BytesWritten);
-	} else {
-                blink_pa6_pa7(3000);
+	for (drive=0; drive<MAX_DRIVES;drive++) {
+		if ((1<<drive) & fdc_write_dirty_bits) {
+			if (dsk[drive].fil.obj.id) {
+				f_close(&dsk[drive].fil);
+				memset(&dsk[drive].fil, 0, sizeof(FIL));
+			
+
+				if (!dsk[drive].double_sided) {
+					// single sided
+					offset = actual_track[drive] * 9 * 512 * 1;
+					track_size = SINGLE_SIDED_TRACK;
+				} else {
+					// double sided
+					offset = actual_track[drive] * 9 * 512 * 2;
+					track_size = DOUBLE_SIDED_TRACK;
+				}
+
+				res = f_open(&dsk[drive].fil, dsk[drive].disk_filename, FA_WRITE);
+				if (res != FR_OK) { blink_pa1(3000);}
+
+				res = f_lseek(&dsk[drive].fil, offset);
+				if (res == FR_OK) {
+					res = f_write(&dsk[drive].fil, b, track_size, &BytesWritten);
+				} else {
+					blink_pa1(3000);
+				}
+				f_close(&dsk[drive].fil);
+				memset(&dsk[drive].fil, 0, sizeof(FIL));
+				res = f_open(&dsk[drive].fil, dsk[drive].disk_filename, FA_READ);
+			}
+		}
+		b+=DOUBLE_SIDED_TRACK;
 	}
 	return res;
 
@@ -455,13 +500,12 @@ FRESULT __attribute__((optimize("O0"))) save_track(FIL *fil, uint32_t track_numb
 
 int __attribute__((optimize("O0")))  main(void) {
 
-        FIL fil;
-	uint32_t track_size;
 	TCHAR full_filename[128];
-	int next_button_debounce;
+	uint64_t next_button_debounce;
 	int first_time;
 	uint32_t	button_state;
 	int32_t	file_counter;
+        DSK dsk[MAX_DRIVES];
 
 	// You have to disable lazy stacking BEFORE initialising the scratch fpu registers
 	enable_fpu_and_disable_lazy_stacking();
@@ -523,7 +567,9 @@ int __attribute__((optimize("O0")))  main(void) {
         }
 
 
+#ifdef ENABLE_RTC_RAM_BANK_EMULATION
 	config_PC0_int();
+#endif
 	config_PC2_int();
 
 
@@ -537,8 +583,12 @@ int __attribute__((optimize("O0")))  main(void) {
 		first_time=FALSE;
 	}
 	// This memset is actually really important
-	memset(&fil, 0, sizeof(FIL));
+	for (int drive=0;drive<MAX_DRIVES;drive++) {
+		memset(&dsk[drive].fil, 0, sizeof(FIL));
+	}
 
+
+	disk_index=0;	// if this is 1 then it means a subdir was previously selected
 	while(1) {
 		button_state = GPIOA->IDR;
 		if (!(button_state & NEXT_ROM_OR_DISK_MASK) || !(button_state & PREV_ROM_OR_DISK_MASK) || first_time) {
@@ -546,50 +596,68 @@ int __attribute__((optimize("O0")))  main(void) {
 			if (next_button_debounce == 0 ) {
 				if (!(button_state & PREV_ROM_OR_DISK_MASK)) {
 					// if we hit the prev button do the worlds worst way of finding the previous file
-					if (file_counter >0) {
-						res = f_closedir(&dir);
-        					res = f_opendir(&dir, root_directory);
-						for (uint32_t i=0;i< file_counter; i++) {
+					// if disk_index_max is set to 1 or more it means we are in a subdir. We should bump the disk_index down. If we let ot go to zero, that's fine, as the next bit of code will go tot eh previous entry in the list
+					if (disk_index_max >0) {
+						disk_index--;
+					}
+
+					if (disk_index==0) {
+						if (file_counter >0) {
+							res = f_closedir(&dir);
+							res = f_opendir(&dir, root_directory);
+							for (uint32_t i=0;i< file_counter; i++) {
+								res = f_readdir(&dir, &fno);                 
+							}
+							file_counter--;
+						} else {
 							res = f_readdir(&dir, &fno);                 
 						}
-						file_counter--;
-					} else {
-						res = f_readdir(&dir, &fno);                 
 					}
 				} else {
 					// if we hit the next button or this is the first time through
-					file_counter++;
-					res = f_readdir(&dir, &fno);                 
-					if (res != FR_OK || fno.fname[0] == 0) {
-						// allow buttonpushes to 'wrap round'
-						f_closedir(&dir);
-						res = f_opendir(&dir, root_directory);
-						res = f_readdir(&dir, &fno);
-						file_counter=0;
+					if (disk_index >=1) {
+						disk_index++;
+					}
+					if ((disk_index==0) || (disk_index > disk_index_max)) {
+						disk_index = 0;
+						disk_index_max = 0;
+
+						file_counter++;
+						res = f_readdir(&dir, &fno);                 
+						if (res != FR_OK || fno.fname[0] == 0) {
+							// allow buttonpushes to 'wrap round'
+							f_closedir(&dir);
+							res = f_opendir(&dir, root_directory);
+							res = f_readdir(&dir, &fno);
+							file_counter=0;
+						}
 					}
 				}
 				strcpy(full_filename,root_directory);
 				strcat(full_filename,"/");
 				strcat(full_filename,fno.fname);
-				if (suffix_match(fno.fname, DSK_SUFFIX)) {
-					// try to close any previous dsk
-					if (fil.obj.id) {
-						f_close(&fil);
-						memset(&fil, 0, sizeof(FIL));
-					}
-					// You need to put your disk rom as 'disk.rom' on the root of the SD card
+#ifdef DEBUG_FILENAME
+				strcpy(debug_filename,full_filename);
+#endif
+				if (load_disks(dsk,full_filename,&disk_index,&disk_index_max)) {
 					load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
-					res = f_open(&fil, full_filename, FA_READ);
-					if (res != FR_OK) blink_pa6_pa7(1500);
-					track_size = (f_size(&fil) == SINGLE_SIDED_DISK_SIZE)? 9 * 512 : 2 * 9 * 512;
-					// trigger a seek in the next block of code. This doesnt seem to work through a warm reboot (ie. triggering a Z80 _RESET)
-					main_thread_data = 0;
-					main_thread_command_reg = MAIN_THREAD_SEEK_COMMAND;
-					// this willl activate the FDC emulation of 7ff8
+					// trigger a seek in the next block of code.
+					main_thread_data = 0 | 0x40000000 | 0x20000000;
+					main_thread_command_reg = MAIN_THREAD_BUTTON_COMMAND;
+					// this willl activate the FDC emulation 
 					init_fdc();
 				} else {
+					// TODO. If you have a disk with Disk 1 then Disk 2 and you press the NEXT button, then when it gets to disk 3 load_disks will return 0 and it will attempt to load
+					// garbage as a ROM and crash. Of course then if you press NEXT again it will see disk_index is 0 and then advance to the next file.
+					disk_index=0;
+					disk_index_max=0;
 					// Try to close any dsk file that might be open
-					f_close(&fil);
+					for (int drive=0;drive<MAX_DRIVES;drive++) {
+						if (dsk[drive].fil.obj.id) {
+							f_close(&dsk[drive].fil);
+							memset(&dsk[drive].fil, 0, sizeof(FIL));
+						}
+					}
 					// Must be a ROM
 					deactivate_fdc();
 					load_rom(full_filename,(char *)CCMRAM_BASE,(char *)&high_64k_base);
@@ -602,27 +670,32 @@ int __attribute__((optimize("O0")))  main(void) {
 
 		if (!(main_thread_command_reg & 0xc0000000) && (main_thread_command_reg & 0xff)) {
 			switch(main_thread_command_reg) {
+				case (MAIN_THREAD_BUTTON_COMMAND):
 				case (MAIN_THREAD_SEEK_COMMAND): {
 					main_thread_command_reg |= MAIN_COMMAND_IN_PROGRESS;
 					// Check if there is any pending write
 					if (fdc_write_flush_count) {
-						if (fil.obj.id) {
-							f_close(&fil);
-							memset(&fil, 0, sizeof(FIL));
-						}
-						res = f_open(&fil, full_filename, FA_WRITE);
-						save_track(&fil, main_thread_actual_track, (char *) &track_buffer, track_size);
-						f_close(&fil);
-						memset(&fil, 0, sizeof(FIL));
-						res = f_open(&fil, full_filename, FA_READ);
-
+						fdc_write_flush_count = 0;
+						save_track(dsk, main_thread_actual_track,(char *) &track_buffer);
+						fdc_write_dirty_bits = 0;
 					}
 					// main_thread_data contains the track number
-					load_track(&fil, main_thread_data, (char *) &track_buffer, track_size);
-					// Some games tend to prefer a bit more of a delay between track seeks
+					// bit 31 is DSK3 (not implemented) , bit 30 is DSK2, bit 29 is DSK1
+					load_track(dsk, (main_thread_data>>29), (main_thread_data & 0xff), (char *) &track_buffer);
 					delay_ms(1);
-					main_thread_actual_track = main_thread_data;
-					main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
+					for (int drive = 0 ; drive<MAX_DRIVES ; drive++) {
+						if (1<<drive & (main_thread_data>>29)) {
+							main_thread_actual_track[drive] = (main_thread_data & 0xff);
+						}
+					}
+					update_fdc_track_from_intended_track_register();
+					if ((main_thread_command_reg & 0xff) == MAIN_THREAD_SEEK_COMMAND) {
+						main_thread_command_reg |= MAIN_COMMAND_COMPLETE;
+					} else {
+						// must be a next/prev button push so make sure we don't feed an INTRQ in
+						main_thread_command_reg = 0;
+					}
+
 					break;
 				}
 				case (MAIN_THREAD_COMMAND_LOAD_DIRECTORY): {
@@ -661,26 +734,26 @@ int __attribute__((optimize("O0")))  main(void) {
 					strcpy(full_filename,root_directory);
 					strcat(full_filename,"/");
 					strcat(full_filename,fno.fname);
-					if (suffix_match(fno.fname, DSK_SUFFIX)) {
-						// try to close any previous dsk
-						if (fil.obj.id) {
-							f_close(&fil);
-							memset(&fil, 0, sizeof(FIL));
-						}
-						// You need to put your disk rom as 'disk.rom' on the root of the SD card
+
+					// load_disks returns 0 if if could not find a disk
+					disk_index=1;
+					if (load_disks(dsk,full_filename,&disk_index,&disk_index_max)) {
 						load_rom("disk.rom",(char *)CCMRAM_BASE,(char *)&high_64k_base);
-						res = f_open(&fil, full_filename, FA_READ);
-						// THIS ONE FAILED
-						if (res != FR_OK) blink_pa6_pa7(2500);
-						track_size = (f_size(&fil) == SINGLE_SIDED_DISK_SIZE)? 9 * 512 : 2 * 9 * 512;
-						// trigger a seek in the next block of code. This doesnt seem to work through a warm reboot (ie. triggering a Z80 _RESET)
-						main_thread_data = 0;
-						main_thread_command_reg = MAIN_THREAD_SEEK_COMMAND;
-						// this willl activate the FDC emulation of 7ff8
+						// trigger a seek in the next block of code.
+                                                main_thread_data = 0;
+                                                main_thread_command_reg = MAIN_THREAD_SEEK_COMMAND;
+						// this willl activate the FDC emulation 
 						init_fdc();
 					} else {
-						// Try to close any dsk file that might be open
-						f_close(&fil);
+						disk_index=0;
+						// try to close any previous dsk
+						for (int drive=0;drive<MAX_DRIVES;drive++) {
+							if (dsk[drive].fil.obj.id) {
+								f_close(&dsk[drive].fil);
+								memset(&dsk[drive].fil, 0, sizeof(FIL));
+							}
+							dsk[drive].disk_filename[0] = 0;	// null out the first char of the filename (helpful in debugging)
+						}
 						// Must be a ROM
 						deactivate_fdc();
 						load_rom(full_filename,(char *)CCMRAM_BASE,(char *)&high_64k_base);
@@ -694,15 +767,8 @@ int __attribute__((optimize("O0")))  main(void) {
 		if (fdc_write_flush_count) {
 			fdc_write_flush_count--;
 			if (fdc_write_flush_count == 0) {
-				if (fil.obj.id) {
-					f_close(&fil);
-					memset(&fil, 0, sizeof(FIL));
-				}
-				res = f_open(&fil, full_filename, FA_WRITE);
-				save_track(&fil, main_thread_actual_track, (char *) &track_buffer, track_size);
-				f_close(&fil);
-				memset(&fil, 0, sizeof(FIL));
-				res = f_open(&fil, full_filename, FA_READ);
+				save_track(dsk, main_thread_actual_track, (char *) &track_buffer);
+				fdc_write_dirty_bits = 0;
 			}
 		}
 	}

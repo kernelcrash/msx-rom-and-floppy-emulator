@@ -43,7 +43,7 @@
 #define reg_bit8_high	s22
 #define reg_track_buffer_ptr	s23
 #define reg_fdc_track	s24
-#define reg_fdc_actual_track	s25
+#define reg_fdc_intended_track	s25
 #define reg_fdc_sector	s26
 #define reg_fdc_data	s27
 
@@ -117,8 +117,9 @@
 #define S_HALT     0x08
 #define S_SIDE     0x10
 #define S_DENSITY  0x20
+#define S_MOTOR    0x80
 
-#define S_LASTSTEPDIR	0x80
+#define S_LASTSTEPDIR	0x100
 #define S_FDC_PRESENT	0x80000000
 
 #define WD1793_IRQ     0x80
@@ -131,6 +132,7 @@
 #define MAIN_THREAD_CHANGE_DISK_COMMAND 2
 #define MAIN_THREAD_COMMAND_LOAD_DIRECTORY 3
 #define MAIN_THREAD_COMMAND_LOAD_ROM 4
+#define MAIN_THREAD_BUTTON_COMMAND 5
 
 #define LOAD_DIRECTORY_COMMAND_MASK 0x80
 #define LOAD_ROM_COMMAND_MASK 0x40
@@ -150,6 +152,10 @@
 #define DSK_SUFFIX	".dsk"
 
 // ------------
+#define MAX_DRIVES		2
+#define SINGLE_SIDED_TRACK	9*512
+#define DOUBLE_SIDED_TRACK	SINGLE_SIDED_TRACK*2
+
 #define SINGLE_SIDED_DISK_SIZE 368640
 #define DOUBLE_SIDED_DISK_SIZE 737280
 
@@ -157,8 +163,14 @@
 #define CCMRAM_BASE	0x10000000
 
 //------------
-#define FDC_WRITE_FLUSH_DEFAULT	10000
+#define FDC_WRITE_FLUSH_DEFAULT	200000
 
 //----------
 #define MAIN_COMMAND_IN_PROGRESS	0x40000000
 #define MAIN_COMMAND_COMPLETE		0x80000000
+
+//------
+#define DISKS_FOUND 2
+#define DISK1_FOUND 1
+#define NO_DISKS_FOUND 0
+
