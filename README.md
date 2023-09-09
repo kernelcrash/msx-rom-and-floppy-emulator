@@ -106,15 +106,9 @@ of the SD card called 'disk.rom'. I have only tested with the NMS8250 disk rom w
 0ed6dbd654da55b56dfb331dd3df82f0 . 
 
 The disk ROM is technically a 'Disk BASIC ROM' so it means you need to get to BASIC
-<<<<<<< HEAD
-first. A lot of MSX machines boot straight to BASIC, so it's not an issue. But some machines,
-will boot to a menu first. You need to find the option to get to BASIC. As an example, the 
-Panasonic FS-A1 requires you to press F8 (or shift F3) to get to BASIC, but it will let you 
-=======
 first. A lot of MSX machines boot straight to BASIC, so it's not an issue. But some machines
 will boot to a menu first. You need to find the option to get to BASIC. As an example, the
 Panasonic FS-A1 requires you to press F8 (shift F3) to get to BASIC, but it will let you
->>>>>>> 2736fd0 (readme updates)
 bypass this 'Deskpack' menu if you hold down DEL when the machine is booting.
 
 Also, this project was mainly intended for MSX machines that did not have an internal
