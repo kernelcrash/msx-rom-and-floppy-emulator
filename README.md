@@ -16,6 +16,13 @@ Overview
 - The code is still really 'proof of concept'. There is one button that allows you to cycle to the next rom or disk in a directory. Another button takes you to the previous rom or disk. However, I've added a simple boot menu mechanism where an MSX native program (kcmfs) presents a menu of files from the SD card and lets you boot from one of them.
 
 I used an Omega MSX2 computer to test this. I have not tested it on any other MSX or MSX2 computers.
+As I've discovered with this project there is quite a bit of variation with MSX and MSX2 systems, so
+it helps to have 'low expectations'. My goal with this project was to do something 'technically 
+interesting' and to 'run a few games' and then move on to some other project.
+
+And yes you have to compile the firmware. It helps me enormously in terms of troubleshooting if you can 
+set things up to compile the firmware from the source. Otherwise it's really hard to help people
+diagnose issues. 
 
 Wiring it
 ---------
@@ -170,7 +177,12 @@ To build
    make
 ```
 You should end up with a hex and bin file that you can then flash to the stm32f4 board. There's 
-an example below re using USB DFU mode to transfer it.
+an example in the next section re using USB DFU mode to transfer it.
+
+Compiling the code is not that hard, but I've also included a README-compiling.md file that provides some
+more detailed help especially if you are not using linux.
+
+
 
 Copying the firmware to the stm32f407 board
 -------------------------------------------
