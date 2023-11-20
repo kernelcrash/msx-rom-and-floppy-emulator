@@ -84,4 +84,11 @@ exit
 
 ## The menu.rom file just needs to go in the root of the SD card.
 ```
- 
+If you made a mistake with any of that, you may find it easier to delete that whole 'work' directory and try
+again, otherwise you will get different behaviour due to certain files and directories already existing. 
+
+Also, if you are not on docker and you are using Debian, all the commands entered in to the docker container
+(ie. from the 'apt update' onwards) should work if you had a Debian 'Bullseye' based linux system (eg.
+Virtual Machine or you booted off a live USB). Debian Bullseye is version 11 one (11.8 was the last
+version of Bullseye  I think).
+
