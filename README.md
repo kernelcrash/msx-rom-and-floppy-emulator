@@ -17,11 +17,12 @@ Overview
 
 I used an Omega MSX2 computer to test this. I have not tested it on any other MSX or MSX2 computers.
 As I've discovered with this project there is quite a bit of variation with MSX and MSX2 systems, so
-it helps to have 'low expectations'.
+it helps to have 'low expectations'. My goal with this project was to do something 'technically 
+interesting' and to 'run a few games' and then move on to some other project.
 
 And yes you have to compile the firmware. It helps me enormously in terms of troubleshooting if you can 
-set things up to compile the firmware from the source. Your friends will think you are awesome. I will
-think you are awesome. It is not that difficult.
+set things up to compile the firmware from the source. Otherwise it's really hard to help people
+diagnose issues. 
 
 Wiring it
 ---------
