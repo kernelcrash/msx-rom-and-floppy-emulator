@@ -35,7 +35,8 @@ cd work
 
 ## This is how I run a 'docker container' on linux. The expectation is that
 ## you would do the same from some sort of terminal or command prompt on
-## Windows or Mac.
+## Windows or Mac. On some versions of docker you might have to change this
+## line to    docker run -v ${PWD}:/work -it debian:bullseye-slim
 
 docker run -v .:/work -it debian:bullseye-slim
 
