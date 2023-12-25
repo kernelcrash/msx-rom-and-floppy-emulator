@@ -126,7 +126,6 @@ over control to the disk ROM in the stm32f4 board.
 The WD2793 floppy disk controller support was based on WD1793.c in fMSX by Marat Fayzullin. Note that:
 
  - Not all the chip is implemented. But most of the stuff you want is.
- - It pretends to be only one drive
  - I haven't worked out how to make it think the disk has changed after a warm
    boot, so you need to power off /on to get a new image to load. However, in
    a multi-disk game it generally works OK if you press NEXT while the computer 
