@@ -12,7 +12,7 @@ Overview
 - The STM32F4 board presents a rom image in real time to the MSX/MSX2 computer such that it thinks a rom cartridge is attached.
 - It also emulates a WD2793 floppy disk controller such that you can load disk images off the SD card. Two floppy drives are supported; A: and B:
 - It also (optionally) partially emulates a RP5C01 RTC chip (enough of it to make an MSX2 computer boot if you don't have that chip). This is only really of use to me! Comment out the
- ENABLE_RTC_RAM_BANK_EMULATION line in the Makefile if you dont need this emulation.
+ ENABLE_RTC_RAM_BANK_EMULATION line in the Makefile if you don't need this emulation.
 - The code is still really 'proof of concept'. There is one button that allows you to cycle to the next rom or disk in a directory. Another button takes you to the previous rom or disk. However, I've added a simple boot menu mechanism where an MSX native program (kcmfs) presents a menu of files from the SD card and lets you boot from one of them.
 
 I used an Omega MSX2 computer to test this. I have not tested it on any other MSX or MSX2 computers.
@@ -217,7 +217,7 @@ There is an ultra simple protocol used;
 
  - kcmfs writes an 0x80 to 0x8000. That triggers the main thread of the 
    smt32f4 board to do a directory listing of the msx directory. The 
-   first filename in the direcory is written so that the MSX computer will
+   first filename in the directory is written so that the MSX computer will
    see it at 0x8100, the 2nd file appears at 0x8180 and so on (ie. 128 byte's
    per filename)
  - kcmfs polls 0x8000 to see when bit 7 goes low. That means the file listing
